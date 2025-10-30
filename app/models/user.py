@@ -1,9 +1,8 @@
-from sqlalchemy.orm import declarative_base
+from .database import Base
+from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, DateTime, Enum
 import enum
 from datetime import datetime
-
-Base = declarative_base()
 
 class UserRole(enum.Enum):
     student = "student"
@@ -13,8 +12,10 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key = True)
-    name = Column(String(100))
-    email = Column(String(255), unique=True, index=True)
-    password_hash = Column(String(255))
-    role = Column(Enum(UserRole))
-    created_at = Column(DateTime, default = datetime.now())
+    name = Column(String(100), nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(Enum(UserRole), nullable=False)
+    created_at = Column(DateTime, default = datetime.now(), nullable=False)
+
+    progress = relationship('Progress', back_populates='user')
