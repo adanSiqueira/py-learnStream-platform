@@ -38,18 +38,23 @@ The app applies a **hybrid database strategy**, designed according to the **PACE
 </div>
 
 #### Design Rationale
-- **Availability (A)** and **Low Latency (L)** are prioritized for course consumption and progress tracking, ensuring users always have access to their learning content. In an online learning platform, availability and responsiveness directly impact user experience — learners must always be able to access courses, watch lessons, and have their progress updated, even during network partitions or node failures. For this reason, AP/EL (Available–Partition tolerant / Else–Low latency) systems like MongoDB are ideal for progress tracking, analytics, and content delivery, where minor delays in synchronization are acceptable. 
-- **Consistency (C)** is enforced on authentication, user management, and core course data to preserve data integrity. Components that require transactional integrity — such as authentication, roles, payments, and course metadata — demand CP/EC (Consistent–Partition tolerant / Else–Consistent) systems like PostgreSQL to prevent conflicts and maintain data reliability.
-- The result is an **AP/EL + CP/EC hybrid system**, combining the strengths of relational and non-relational storage.
+
+* **Availability (A)** and **Low Latency (L)** are prioritized for course and lesson delivery, ensuring learners can always access educational content, even in case of network partitions or replication delays. In an online learning platform, uninterrupted access to lessons and progress updates outweighs immediate synchronization — users expect to study anytime, anywhere. For that reason, **AP/EL systems** like **MongoDB** are chosen for **courses, lessons, progress tracking, analytics, and watch history**, where temporary inconsistencies are acceptable in favor of responsiveness and uptime.
+* **Consistency (C)** is strictly enforced for **authentication, user management, enrollments, and payments**, since these components require transactional integrity and conflict prevention. **CP/EC systems** like **PostgreSQL** ensure strong consistency, guaranteeing reliable access control and accurate financial operations.
+* The result is a **hybrid AP/EL + CP/EC architecture**, leveraging the high availability of NoSQL for content and progress data, while maintaining strong consistency and integrity in user and transactional layers.
 
 ### Stack
-| Layer | Purpose | Technology |
-|-------|----------|-------------|
-| **Relational (CP/EC)** | Users, authentication, roles, course metadata | PostgreSQL + SQLAlchemy |
-| **NoSQL (AP/EL)** | Lesson progress, analytics, watch history | MongoDB + Motor |
-| **Cache Layer** | Caching, sessions, rate limiting | Redis + aioredis |
-| **Async API Layer** | High-performance backend | FastAPI |
-| **Streaming API** | Secure video hosting and delivery | Mux API |
+
+| Layer                  | Purpose                                                       | Technology              |
+| ---------------------- | ------------------------------------------------------------- | ----------------------- |
+| **Relational (CP/EC)** | Users, authentication, roles, enrollments, payments           | PostgreSQL + SQLAlchemy |
+| **NoSQL (AP/EL)**      | Courses, lessons, progress tracking, analytics, watch history | MongoDB + Motor         |
+| **Cache Layer**        | Caching, sessions, rate limiting                              | Redis + aioredis        |
+| **Async API Layer**    | High-performance backend                                      | FastAPI                 |
+| **Streaming API**      | Secure video hosting and delivery                             | Mux API                 |
+
+---
+
 
 
 
