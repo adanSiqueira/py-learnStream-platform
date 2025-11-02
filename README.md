@@ -28,7 +28,7 @@ LearnStream Platform is a FastAPI-based backend for managing online courses and 
 - PyJWT, Passlib
 - Mux API
 
-
+---
 ### Database Architecture 
 
 The app applies a **hybrid database strategy**, designed according to the **PACELC theorem**. 
@@ -52,6 +52,16 @@ The app applies a **hybrid database strategy**, designed according to the **PACE
 | **Cache Layer**        | Caching, sessions, rate limiting                              | Redis + aioredis        |
 | **Async API Layer**    | High-performance backend                                      | FastAPI                 |
 | **Streaming API**      | Secure video hosting and delivery                             | Mux API                 |
+
+---
+##  Security and Authentication Design
+
+The authentication system follows **JWT-based stateless security**, designed for distributed and asynchronous environments, with the following premises stablished:
+
+1. **Access Tokens are not stored in the database**: Access tokens are **short-lived and stateless**, carrying all user claims internally. This enables horizontal scalability and reduces latency, since the server can verify tokens without querying the database. Once expired, access tokens are simply discarded instead of invalidated manually.
+
+2. **Refresh Tokens are hased stored, to allow revocation**: Refresh tokens are **long-lived** and can generate new access tokens without requiring a full login. Storing them allows the server to revoke compromised sessions or implement logout mechanisms securely. By storing only a **one-way hash**, even if the DB is leaked, tokens cannot be used. Hashing acts as a **second layer of defense**, just as password hashing does.
+
 
 ---
 
