@@ -115,3 +115,38 @@ def decode_token(token: str) -> dict:
     except jwt.InvalidTokenError:
         raise
 
+def hash_token(token: str) -> str:
+    """
+    Hash a refresh token before storing it in the database.
+
+    Args:
+        token (str): The raw refresh token string to be hashed.
+
+    Returns:
+        str: The bcrypt hash of the token, suitable for secure storage.
+
+    Notes:
+        - Refresh tokens are hashed for the same reason as passwords: 
+          to prevent misuse if the database is compromised.
+        - The original token is never stored directly, only its hash.
+    """
+    return pwd_context.hash(token)
+
+def verify_token_hash(token: str, hash_):
+    """
+    Verify whether a provided refresh token matches its stored hash.
+
+    Args:
+        token (str): The raw refresh token received from the client.
+        hash_ (str): The hashed version of the token stored in the database.
+
+    Returns:
+        bool: True if the token corresponds to the stored hash, False otherwise.
+
+    Notes:
+        - Used during token rotation or validation to confirm that a given 
+          refresh token is authentic and belongs to the requesting user.
+        - Prevents attackers from using stolen token hashes directly, 
+          since the verification process requires the original token.
+    """
+    return pwd_context.verify(token, hash_)

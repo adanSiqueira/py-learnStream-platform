@@ -1,5 +1,6 @@
 from .database import Base
 from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
 
@@ -16,3 +17,6 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.student, nullable=False)
     created_at = Column(DateTime, default = datetime.now(), nullable=False)
+
+    # Relationship: One user can have multiple refresh tokens
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
