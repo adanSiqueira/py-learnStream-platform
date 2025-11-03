@@ -9,6 +9,7 @@ Endpoints:
     - POST /auth/register: Register a new user.
     - POST /auth/login: Authenticate a user and issue tokens.
     - POST /auth/refresh: Exchange a valid refresh token for new tokens.
+    - POST /auth/logout: Ends user section.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -24,6 +25,7 @@ from app.services.security import (
 from app.models.sql.database import get_db
 from app.services import user_ops, refresh_token_ops
 from datetime import datetime, timedelta
+from app.auth.deps import get_current_user
 
 router = APIRouter(prefix='/auth')
 
@@ -181,3 +183,8 @@ async def refresh_token(data: RefreshIn, db: AsyncSession = Depends(get_db)):
         "refresh_token": new_refresh,
         "token_type": "bearer",
     }
+
+@router.post('/logout')
+async def logout(current_user = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    await refresh_token_ops (db, current_user.id)
+    return {'detail': 'Logged out'}

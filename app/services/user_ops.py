@@ -22,6 +22,20 @@ async def get_by_email(db: AsyncSession, email: str) -> User | None:
     result = await db.execute(select(User).where(User.email == email))
     return result.scalars().first()
 
+async def get_by_id(db: AsyncSession, id: int) -> User | None:
+    """
+    Retrieve a user by id.
+
+    Args:
+        db (AsyncSession): Active database session.
+        id (str): User's Id.
+
+    Returns:
+        User | None: The matching user instance if found, otherwise None.
+    """
+    result = await db.execute(select(User).where(User.id == id))
+    return result.scalars().first()
+
 
 async def create_user(db: AsyncSession, name: str, email: str, password_hash: str) -> User:
     """
