@@ -1,3 +1,15 @@
+"""
+This module defines authentication and authorization endpoints for the API,
+including user registration, login, and token refresh functionality.
+
+It coordinates interactions between the service layer and the database,
+handling password hashing, JWT generation, and secure refresh token rotation.
+
+Endpoints:
+    - POST /auth/register: Register a new user.
+    - POST /auth/login: Authenticate a user and issue tokens.
+    - POST /auth/refresh: Exchange a valid refresh token for new tokens.
+"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
