@@ -1,4 +1,4 @@
-from .database import Base
+from .database import Base, get_db
 from .user import User
 
 __all__ = ["Base", "User"]
