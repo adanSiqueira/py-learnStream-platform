@@ -9,7 +9,7 @@ Endpoints:
     - POST /auth/register: Register a new user.
     - POST /auth/login: Authenticate a user and issue tokens.
     - POST /auth/refresh: Exchange a valid refresh token for new tokens.
-    - POST /auth/logout: Ends user section.
+    - POST /auth/logout: Invalidate all refresh tokens associated with the authenticated user, effectively logging them out.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -186,5 +186,20 @@ async def refresh_token(data: RefreshIn, db: AsyncSession = Depends(get_db)):
 
 @router.post('/logout')
 async def logout(current_user = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Invalidate all refresh tokens associated with the authenticated user, effectively logging them out.
+
+    Steps:
+    1. Identify the current authenticated user via dependency injection (`get_current_user`).
+    2. Revoke or delete all refresh tokens linked to this user in the database.
+    3. Return a confirmation message indicating the session has ended.
+
+    Args:
+        current_user (User): The authenticated user object obtained from the access token.
+        db (AsyncSession): SQLAlchemy async database session.
+
+    Returns:
+        dict: Contains a confirmation message: `{"detail": "Logged out"}`.
+    """
     await refresh_token_ops (db, current_user.id)
     return {'detail': 'Logged out'}
