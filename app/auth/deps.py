@@ -48,3 +48,33 @@ async def get_current_user(
         )
 
     return user
+
+def require_role(roles: list[str]):
+    """
+    Dependency factory that enforces role-based access control (RBAC) on routes.
+
+    This higher-order function returns a dependency that ensures the current user
+    possesses one of the allowed roles. It can be used in route definitions via
+    FastAPI's `Depends` mechanism.
+
+    Example:
+        ```python
+        @router.post("/admin-task")
+        async def admin_action(user = Depends(require_role(["admin"]))):
+            ...
+        ```
+
+    Args:
+        roles (list[str]): List of permitted role names (e.g., ["admin", "manager"]).
+
+    Returns:
+        Callable: A FastAPI dependency that validates the user's role.
+
+    Raises:
+        HTTPException: 403 if the user does not have sufficient privileges.
+    """
+    async def inner(user = Depends(get_current_user)):
+        if user.role.value not in roles:  
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient privileges")
+        return user
+    return inner

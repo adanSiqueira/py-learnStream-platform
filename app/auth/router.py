@@ -25,9 +25,10 @@ from app.services.security import (
 from app.models.sql.database import get_db
 from app.services import user_ops, refresh_token_ops
 from datetime import datetime, timedelta
-from app.auth.deps import get_current_user
+from app.auth.deps import get_current_user, require_role
 
 router = APIRouter(prefix='/auth')
+router_adm = APIRouter(prefix='/admin-only')
 
 class RegisterIn(BaseModel):
     """
@@ -203,3 +204,20 @@ async def logout(current_user = Depends(get_current_user), db: AsyncSession = De
     """
     await refresh_token_ops (db, current_user.id)
     return {'detail': 'Logged out'}
+
+@router_adm.post("/admin-only")
+async def admin_action(user=Depends(require_role(["admin"]))):
+    """
+    Protected endpoint accessible only by users with the 'admin' role.
+
+    This route demonstrates the use of the `require_role` dependency to enforce
+    role-based access control (RBAC). Any user without the "admin" role will
+    receive a 403 Forbidden response.
+
+    Args:
+        user (User): The authenticated admin user (injected automatically via dependency).
+
+    Returns:
+        dict: A confirmation message or result from the admin operation.
+    """
+    return {"detail": f"Admin access granted for user {user.email}"}
