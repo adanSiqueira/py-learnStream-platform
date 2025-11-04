@@ -10,6 +10,7 @@ Collections:
 from datetime import datetime
 from bson import ObjectId, errors
 from .database import db
+import uuid
 
 courses_collection = db["courses"]
 
@@ -25,6 +26,7 @@ async def create_course(title: str, description: str):
         str: The string representation of the inserted course's ObjectId.
     """
     course = {
+        "course_id": str(uuid.uuid4()),
         "title": title,
         "description": description,
         "created_at": datetime.now(),

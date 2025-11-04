@@ -47,5 +47,5 @@ class User(Base):
     role = Column(Enum(UserRole), default=UserRole.student, nullable=False)
     created_at = Column(DateTime, default = datetime.now(), nullable=False)
 
-    # Relationship: One user can have multiple refresh tokens
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    enrollments = relationship("Enrollment", back_populates="user", cascade="all, delete-orphan")

@@ -18,7 +18,7 @@ from .database import db
 # Reference to the "lessons" collection in MongoDB.
 lessons_collection = db["lessons"]
 
-async def create_lesson(course_id: str, title: str, description: str) -> str:
+async def create_lesson(course_id: str, title: str, description: str, mux: dict) -> str:
     """
     Create a new lesson document linked to a specific course.
 
@@ -36,7 +36,19 @@ async def create_lesson(course_id: str, title: str, description: str) -> str:
         "description": description,
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
-    }
+        "mux": {
+            "asset_id": str,
+            "playback_id": str,
+            "status": str,
+            "duration": float | None,
+            "thumbnail_url": str | None,
+            "poster_url": str | None,
+            "manifest_url": str | None,
+            "watch_page_url": str | None,
+            "visibility": str,        
+            "upload_method": str | None
+            }
+        }
     result = await lessons_collection.insert_one(lesson)
     return str(result.inserted_id)
 
