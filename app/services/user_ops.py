@@ -7,6 +7,7 @@ operations behind a simple interface, keeping the API layer clean.
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.sql.user import User
+from app.models.sql.enrollment import Enrollment
 
 async def get_by_email(db: AsyncSession, email: str) -> User | None:
     """
@@ -55,3 +56,24 @@ async def create_user(db: AsyncSession, name: str, email: str, password_hash: st
     await db.commit()
     await db.refresh(user)
     return user
+
+async def is_enrolled (db: AsyncSession, user_id: int, course_id:str) -> bool:
+    """
+    Check if a given user is enrolled in a specific course.
+
+    Args:
+        db (AsyncSession): Active SQLAlchemy session.
+        user_id (int): User's ID from the SQL database.
+        course_id (str): Course ID from the MongoDB collection (stored as string in Enrollment).
+
+    Returns:
+        bool: True if the user is enrolled in the course, False otherwise.
+    """
+    result = await db.execute(
+        select(Enrollment).where(
+            Enrollment.user_id == user_id,
+            Enrollment.course_id == course_id
+        )
+    )
+    enrollment = result.scalars().first()
+    return enrollment is not None
