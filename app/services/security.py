@@ -8,7 +8,7 @@ stateless access and refresh token management.
 """
 from typing import Any, Dict
 from passlib.context import CryptContext
-from core import config
+from app.core import config
 from datetime import datetime, timedelta
 import jwt
 

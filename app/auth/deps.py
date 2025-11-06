@@ -1,3 +1,25 @@
+"""
+Authentication & Authorization Dependencies
+
+This module provides FastAPI dependency functions used to enforce authentication
+and authorization across the application.
+
+It integrates JWT-based authentication (using the utilities defined in
+app.services.security) with the database layer, ensuring that:
+- Only authenticated users can access protected endpoints.
+- Role-based access control (RBAC) is consistently applied through dependency injection.
+
+Main Components
+1. **OAuth2PasswordBearer** — Defines the token retrieval mechanism for incoming requests.
+2. **get_current_user()** — Extracts, verifies, and returns the user associated with a valid JWT.
+3. **require_role()** — Higher-order dependency enforcing role-based access for routes.
+
+Used By
+- Route modules (`/routers/*`) to protect endpoints.
+- Service layers that need to identify the current authenticated user.
+- Administrative actions that require elevated privileges (differenciate routes, student and admin-only).
+"""
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession

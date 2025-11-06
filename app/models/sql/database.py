@@ -14,10 +14,11 @@ Database Engine:
 
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from app.core.config import settings
 
 Base = declarative_base()
 
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5432/py-learnstream"
+DATABASE_URL = settings.DATABASE_URL
 
 # Asynchronous database engine
 engine = create_async_engine(DATABASE_URL, echo=True)

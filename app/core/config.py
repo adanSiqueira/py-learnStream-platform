@@ -4,35 +4,44 @@ Application configuration module.
 This file centralizes all environment-based settings for the project,
 including security parameters (JWT), database URIs, and expiration rules.
 It uses Pydantic's BaseSettings to automatically load variables from
-the environment or a `.env` file, with type validation and defaults.
+the environment or a .env file, with type validation and defaults.
 """
-from pydantic import BaseSettings
+from pydantic import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables or `.env`.
 
     Attributes:
-        JWT_SECRET (str): Secret key used for signing and verifying JWT tokens.
-        JWT_ALGORITHM (str): Hashing algorithm used for JWT (default: HS256).
-        ACESS_TOKEN_EXPIRE_MINUTES (int): Access token lifetime in minutes.
-        REFRESH_TOKEN_EXPIRE_DAYS (int): Refresh token lifetime in days.
-        SQLALCHEMY_DATABASE_URI (str): Connection string for the PostgreSQL database.
+        DATABASE_URL (str): SQLAlchemy-compatible connection string for the PostgreSQL database.
+        MONGO_URL (str): Connection URI for the MongoDB database instance.
+        MONGO_DB (str): The specific MongoDB database name to use.
+        MUX_TOKEN_ID (str): Mux API access token ID for authenticated API requests.
+        MUX_TOKEN_SECRET (str): Mux API secret key used in conjunction with MUX_TOKEN_ID.
+        REDIS_URL (str): Connection URI for the Redis instance (used for caching or background tasks).
+        JWT_SECRET (str): Secret key used to sign and verify JWT tokens.
+        JWT_ALGORITHM (str): Cryptographic algorithm used for JWT signing (default: `"HS256"`).
     """
+    DATABASE_URL: str
+    MONGO_URL: str
+    MONGO_DB: str
+    MUX_TOKEN_ID: str
+    MUX_TOKEN_SECRET: str
+    REDIS_URL: str
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
-    ACESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
-    SQLALCHEMY_DATABASE_URI: str
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+    """
+    Configuration metadata for Pydantic Settings.
 
-    class Config:
-        """
-        Pydantic configuration for loading environment variables.
-
-        By default, variables are read from a `.env` file located in the project root.
-        """
-        
-        env_file = ".env"
+    Specifies that environment variables should be loaded from a .env file
+    located in the project root directory, with UTF-8 encoding.
+    Unrecognized fields in the .env file are ignored for flexibility.
+    """
 
 settings = Settings()

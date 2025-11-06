@@ -1,5 +1,5 @@
 """
-This module defines the `RefreshToken` ORM model, representing refresh tokens 
+This module defines the 'RefreshToken' ORM model, representing refresh tokens 
 used in the authentication and session management system.
 
 Each refresh token is associated with a user, and stores metadata about 
@@ -7,7 +7,7 @@ its issuance, expiration, and revocation status. This model supports
 secure and stateful refresh token rotation.
 
 Relationships:
-    - Belongs to `User` (many-to-one relationship).
+    - Belongs to 'User' (many-to-one relationship).
 
 Used By:
     - Authentication services for refresh token validation, rotation, and revocation.
