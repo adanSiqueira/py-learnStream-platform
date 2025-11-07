@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         MONGO_DB (str): The specific MongoDB database name to use.
         MUX_TOKEN_ID (str): Mux API access token ID for authenticated API requests.
         MUX_TOKEN_SECRET (str): Mux API secret key used in conjunction with MUX_TOKEN_ID.
+        MUX_WEBHOOK_SECRET (str): Mux API secret key used in conjunction with MUX_TOKEN_ID for webhook verification.
         REDIS_URL (str): Connection URI for the Redis instance (used for caching or background tasks).
         JWT_SECRET (str): Secret key used to sign and verify JWT tokens.
         JWT_ALGORITHM (str): Cryptographic algorithm used for JWT signing (default: `"HS256"`).
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
     MONGO_DB: str
     MUX_TOKEN_ID: str
     MUX_TOKEN_SECRET: str
+    MUX_WEBHOOK_SECRET: str
     REDIS_URL: str
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"

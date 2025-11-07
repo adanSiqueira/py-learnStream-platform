@@ -108,3 +108,18 @@ async def delete_lesson(lesson_id: str) -> None:
         None
     """
     await lessons_collection.delete_one({"_id": ObjectId(lesson_id)})
+
+async def create_draft_lesson(course_id: str, title: str, description: str, upload_id: str = None):
+    lesson = {
+        "course_id": ObjectId(course_id) if course_id else None,
+        "title": title,
+        "description": description,
+        "mux": {
+            "upload_id": upload_id,
+            "status": "uploading"
+        },
+        "created_at": datetime.now(),
+        "updated_at": datetime.now()
+    }
+    res = await lessons_collection.insert_one(lesson)
+    return str(res.inserted_id)

@@ -8,12 +8,41 @@ keeps all Mux-specific operations centralized and testable.
 import hmac
 import base64
 import hashlib
+import os
+import httpx
+from typing import Dict, Optional
 from datetime import datetime, timedelta
 from app.services.cache_service import get_cache, set_cache
 from app.core.config import settings
 
-# This value come from Mux dashboard → Settings → Access Tokens
+MUX_API_BASE = "https://api.mux.com"
 MUX_TOKEN_SECRET = settings.MUX_TOKEN_SECRET
+MUX_TOKEN_ID = settings.MUX_TOKEN_ID
+
+auth = (MUX_TOKEN_ID, MUX_TOKEN_SECRET)
+
+async def create_direct_upload():
+    """
+    Create a direct upload object in Mux for client-side upload.
+    Returns the upload object payload which includes upload_url, id, etc.
+    """
+    async with httpx.AsyncClient(auth=auth, timeout=30) as client:
+        # Create an upload object (Mux Uploads API)
+        # docs: POST /video/v1/uploads
+        resp = await client.post(f"{MUX_API_BASE}/video/v1/uploads", json={
+            "new_asset_settings": {"playback_policy": ["public"]} 
+        })
+        resp.raise_for_status()
+        return resp.json()["data"]
+    
+async def get_asset(asset_id: str) -> Dict:
+    """
+    Fetch asset details from Mux.
+    """
+    async with httpx.AsyncClient(auth=auth, timeout=30) as client:
+        resp = await client.get(f"{MUX_API_BASE}/video/v1/assets/{asset_id}")
+        resp.raise_for_status()
+        return resp.json()["data"]
 
 async def create_signed_manifest_url(playback_id: str, user_id: str) -> str:
     """
