@@ -50,7 +50,7 @@ It supports **hybrid database storage** (SQL + NoSQL), **role-based access**, an
 The platform implements a **hybrid PACELC-based architecture**, combining the strengths of **CP** and **AP** systems.
 
 <div align="center">
-    <img src="../src/pacelc.jpg" alt="pacelc" width="1000" height="550" style="margin-bottom: 1.0em;"/>
+    <img src="./src/pacelc.jpg" alt="pacelc" width="1000" height="550" style="margin-bottom: 1.0em;"/>
 </div>
 
 ### Design Rationale
