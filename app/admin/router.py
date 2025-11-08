@@ -9,7 +9,7 @@ Endpoints:
     - POST /admin/admin-only: Simple RBAC demonstration route.
     - POST /admin/uploads: Initiate a new video upload flow for lessons.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from app.auth.deps import require_role, get_current_user
 from app.services.mux_service import create_direct_upload
 from app.models.no_sql.lesson import create_draft_lesson
@@ -36,9 +36,9 @@ async def admin_action(user=Depends(require_role(["admin"]))):
 @router.post("/uploads", dependencies=[Depends(require_role(["admin"]))])
 async def create_upload(
     current_user = Depends(get_current_user),
-    course_id: str | None = None,
-    title: str = "Untitled Lesson",
-    description: str = "Pending upload"
+    course_id: str | None = Form(None),
+    title: str = Form("Untitled Lesson"),
+    description: str = Form("Pending upload")
 ):
     """
     Create a direct upload session in Mux and store a draft lesson in MongoDB.
