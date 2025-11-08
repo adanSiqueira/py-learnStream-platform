@@ -11,63 +11,158 @@
 
 ---
 
-LearnStream Platform is a FastAPI-based backend for managing online courses and secure video lessons.
-
-
-### Features
-- User login and JWT authentication
-- Role-based access control
-- Track course progress
-- Stream video lessons using Mux API
-- SQL or NoSQL database support
-
-### Tech Stack
-- Python 3.11
-- FastAPI
-- SQLAlchemy/PostgreSQL or Motor/MongoDB
-- PyJWT, Passlib
-- Mux API
+**LearnStream Platform** is a modular, scalable backend built with **FastAPI**, designed for managing online courses, user authentication, and secure video streaming using the **Mux API**.  
+It supports **hybrid database storage** (SQL + NoSQL), **role-based access**, and **asynchronous video lifecycle events via webhooks**.
 
 ---
-### Database Architecture 
 
-The app applies a **hybrid database strategy**, designed according to the **PACELC theorem**. 
+## Features
+
+-  **JWT Authentication** (Access + Refresh tokens)
+-  **Role-Based Access Control** (Admin, Instructor, Student)
+- **Mux Video Integration**
+  - Upload & manage video assets via API
+  - Receive and handle video lifecycle events (via webhook)
+- **Course & Lesson Management**
+-  **Track progress and analytics**
+- **Hybrid database design** (PostgreSQL + MongoDB)
+- **Admin-only upload endpoints**
+- **Asynchronous webhook event processing**
+
+---
+
+## Stack
+
+| Layer | Purpose | Technology |
+|-------|----------|------------|
+| **API Layer** | Async backend for requests | FastAPI |
+| **Relational (CP/EC)** | Authentication, enrollments, payments | PostgreSQL + SQLAlchemy |
+| **NoSQL (AP/EL)** | Courses, lessons, analytics, progress | MongoDB + Motor |
+| **Caching Layer** | Rate limiting, caching | Redis + aioredis |
+| **Streaming API** | Secure video delivery | Mux API |
+| **Auth System** | Stateless security | JWT + Passlib |
+| **Infrastructure** | Dev and local testing | Docker + ngrok |
+
+---
+
+##  Database Architecture
+
+The platform implements a **hybrid PACELC-based architecture**, combining the strengths of **CP** and **AP** systems.
 
 <div align="center">
-    <img src="./src/pacelc.jpg" alt="pacelc" width="1000" height = "550" style="margin-bottom: 1.0em;"/>
+    <img src="../src/pacelc.jpg" alt="pacelc" width="1000" height="550" style="margin-bottom: 1.0em;"/>
 </div>
 
-#### Design Rationale
+### Design Rationale
 
-* **Availability (A)** and **Low Latency (L)** are prioritized for course and lesson delivery, ensuring learners can always access educational content, even in case of network partitions or replication delays. In an online learning platform, uninterrupted access to lessons and progress updates outweighs immediate synchronization — users expect to study anytime, anywhere. For that reason, **AP/EL systems** like **MongoDB** are chosen for **courses, lessons, progress tracking, analytics, and watch history**, where temporary inconsistencies are acceptable in favor of responsiveness and uptime.
-* **Consistency (C)** is strictly enforced for **authentication, user management, enrollments, and payments**, since these components require transactional integrity and conflict prevention. **CP/EC systems** like **PostgreSQL** ensure strong consistency, guaranteeing reliable access control and accurate financial operations.
-* The result is a **hybrid AP/EL + CP/EC architecture**, leveraging the high availability of NoSQL for content and progress data, while maintaining strong consistency and integrity in user and transactional layers.
+- **Consistency-first (CP/EC)** for **authentication**, **payments**, and **user management**, handled by **PostgreSQL**.  
+  → Ensures data integrity and secure state transitions.
 
-### Stack
+- **Availability-first (AP/EL)** for **course content**, **progress tracking**, and **analytics**, managed by **MongoDB**.  
+  → Optimized for uptime, responsiveness, and scalability.
 
-| Layer                  | Purpose                                                       | Technology              |
-| ---------------------- | ------------------------------------------------------------- | ----------------------- |
-| **Relational (CP/EC)** | Users, authentication, roles, enrollments, payments           | PostgreSQL + SQLAlchemy |
-| **NoSQL (AP/EL)**      | Courses, lessons, progress tracking, analytics, watch history | MongoDB + Motor         |
-| **Cache Layer**        | Caching, sessions, rate limiting                              | Redis + aioredis        |
-| **Async API Layer**    | High-performance backend                                      | FastAPI                 |
-| **Streaming API**      | Secure video hosting and delivery                             | Mux API                 |
-
----
-##  Security and Authentication Design
-
-The authentication system follows **JWT-based stateless security**, designed for distributed and asynchronous environments, with the following premises stablished:
-
-1. **Access Tokens are not stored in the database**: Access tokens are **short-lived and stateless**, carrying all user claims internally. This enables horizontal scalability and reduces latency, since the server can verify tokens without querying the database. Once expired, access tokens are simply discarded instead of invalidated manually.
-
-2. **Refresh Tokens are hased stored, to allow revocation**: Refresh tokens are **long-lived** and can generate new access tokens without requiring a full login. Storing them allows the server to revoke compromised sessions or implement logout mechanisms securely. By storing only a **one-way hash**, even if the DB is leaked, tokens cannot be used. Hashing acts as a **second layer of defense**, just as password hashing does.
-
+This architecture ensures users can **always access courses and watch videos** while preserving **strong consistency** where critical.
 
 ---
 
+## Security and Authentication
+
+The authentication system implements **JWT-based stateless authentication** with **hashed refresh tokens** for revocation support.
+
+1. **Access Tokens (stateless)**  
+   Short-lived; contain user claims and are verified without DB lookup.  
+   → Enables horizontal scalability and fast verification.
+
+2. **Refresh Tokens (hashed & stored)**  
+   Long-lived; can be revoked by deleting or invalidating their hash.  
+   → Provides controlled session management and logout functionality.
+
+---
+
+## Admin Uploads
+
+Admins can upload video assets via:
+```
+POST /admin/uploads
+````
+This endpoint integrates directly with the **Mux API** to create upload URLs.  
+It returns signed upload information, allowing frontends or other services to upload videos securely and track their status.
+
+---
+
+## Webhooks
+
+### Mux Webhook (`/webhooks/mux`)
+
+Handles asynchronous video lifecycle events from Mux — such as:
+- `video.asset.created`
+- `video.asset.ready`
+- `video.upload.cancelled`
+- `video.asset.errored`
+
+Each event is verified for authenticity using **Mux signature headers** and logged with contextual data for debugging and analytics.
 
 
 
+#### Registering the Webhook in Mux Dashboard
 
+1. Log in to [https://dashboard.mux.com](https://dashboard.mux.com)
+2. Go to **Settings → Webhooks**
+3. Click **+ Create Webhook**
+4. Choose environment (**Production** or **Development**)
+5. Enter your ngrok/public URL + `/webhooks/mux`
+6. Select event types (e.g. *video.asset.created*, *video.asset.ready*)
+7. Save — you’ll receive a **Signing Secret**
+8. Add to `.env` file as:
 
+   MUX_WEBHOOK_SECRET=your_signing_secret
 
+---
+
+## 🧾 Folder Structure
+
+```bash
+app/
+├── admin/
+│   ├── router.py              # Admin-only endpoints (e.g., secure Mux uploads, management tasks)
+│
+├── auth/
+│   ├── router.py              # Authentication routes (login, register, refresh tokens)
+│   ├── deps.py                # Auth-related FastAPI dependencies (JWT validation, user extraction)
+│
+├── core/
+│   ├── config.py              # Centralized environment configuration (loaded from .env via Pydantic)
+│
+├── courses/
+│   ├── router.py              # REST endpoints for course creation, listing, and management
+│
+├── lessons/
+│   ├── router.py              # Endpoints for lesson delivery, metadata, and Mux video references
+│
+├── models/
+│   ├── sql/                   # Relational data models (PostgreSQL via SQLAlchemy)
+│   │   ├── user.py            # User entity (credentials, roles, timestamps)
+│   │   ├── enrollment.py      # User–Course enrollment model
+│   │   ├── refresh_token.py   # Persistent refresh token storage (hashed)
+│   │   ├── database.py        # Async SQLAlchemy engine, session factory, and Base metadata
+│   │
+│   ├── nosql/                 # NoSQL data schemas (MongoDB via Motor)
+│       ├── course.py          # Course schema and structure for MongoDB
+│       ├── lesson.py          # Lesson schema, including Mux asset references
+│       ├── progress.py        # User progress tracking schema
+│       ├── database.py        # MongoDB connection setup and database access layer
+│
+├── mux_webhooks/
+│   ├── router.py              # Mux webhook routes (video.asset.created, video.asset.ready, etc.)
+│
+├── services/
+│   ├── cache_service.py       # Redis caching layer for temporary data, tokens, and rate limiting
+│   ├── mux_service.py         # Mux API client: asset creation, upload URL generation, event utilities
+│   ├── refresh_token_ops.py   # Refresh token operations: rotation, revocation, persistence
+│   ├── security.py            # Password hashing, JWT generation/verification, token utilities
+│   ├── user_ops.py            # User-related business logic (registration, profile handling)
+│
+└── main.py                    # FastAPI entry point — creates the app, loads routers and settings
+
+```
+---
