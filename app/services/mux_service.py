@@ -8,9 +8,9 @@ keeps all Mux-specific operations centralized and testable.
 import hmac
 import base64
 import hashlib
-import os
+import logging
 import httpx
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime, timedelta
 from app.services.cache_service import get_cache, set_cache
 from app.core.config import settings
@@ -18,8 +18,10 @@ from app.core.config import settings
 MUX_API_BASE = "https://api.mux.com"
 MUX_TOKEN_SECRET = settings.MUX_TOKEN_SECRET
 MUX_TOKEN_ID = settings.MUX_TOKEN_ID
+MUX_WEBHOOK_SECRET = settings.MUX_WEBHOOK_SECRET
 
 auth = (MUX_TOKEN_ID, MUX_TOKEN_SECRET)
+logger = logging.getLogger(__name__)
 
 async def create_direct_upload():
     """
@@ -94,3 +96,47 @@ async def handle_mux_webhook(event: dict):
         pass
 
     return {"status": "ok", "event": event_type}
+
+# Signature verification helper
+def verify_mux_signature(raw_body: bytes, signature_header: str | None) -> bool:
+    """
+    Validate the Mux webhook signature using HMAC-SHA256.
+
+    Args:
+        raw_body (bytes): Raw request body.
+        signature_header (str | None): Value of the 'x-mux-signature' header.
+
+    Returns:
+        bool: True if valid, False otherwise.
+    """
+    if not MUX_WEBHOOK_SECRET:
+        logger.warning("MUX_WEBHOOK_SECRET not set; skipping signature verification (dev mode).")
+        return True  # dev-only
+
+    if not signature_header:
+        logger.warning("Missing x-mux-signature header.")
+        return False
+
+    # Mux may send the header as "t=<timestamp>, v1=<hash>"
+    # We only use the v1 portion
+    try:
+        parts = dict(p.split("=", 1) for p in signature_header.split(","))
+        signature_hex = parts.get("v1")
+    except Exception:
+        logger.exception("Invalid signature header format.")
+        return False
+
+    if not signature_hex:
+        logger.warning("Missing v1 signature value.")
+        return False
+
+    computed = hmac.new(
+        MUX_WEBHOOK_SECRET.encode(),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+
+    valid = hmac.compare_digest(computed, signature_hex)
+    if not valid:
+        logger.error("Invalid Mux webhook signature.")
+    return valid
