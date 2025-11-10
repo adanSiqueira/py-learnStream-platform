@@ -11,23 +11,40 @@
 
 ---
 
-**LearnStream Platform** is a modular, scalable backend built with **FastAPI**, designed for managing online courses, user authentication, and secure video streaming using the **Mux API**.  
-It supports **hybrid database storage** (SQL + NoSQL), **role-based access**, and **asynchronous video lifecycle events via webhooks**.
+**LearnStream** is a modular, production-grade backend platform for **online learning and secure video delivery**, powered by **FastAPI**, **PostgreSQL**, **MongoDB**, and **Mux API**.
+
+It’s designed to demonstrate a **scalable system architecture** that blends:
+
+* hybrid database patterns (SQL + NoSQL),
+* event-driven communication,
+* secure JWT-based authentication,
+* role-based access control,
+* and asynchronous webhooks.
 
 ---
 
 ## Features
 
--  **JWT Authentication** (Access + Refresh tokens)
--  **Role-Based Access Control** (Admin, Instructor, Student)
-- **Mux Video Integration**
-  - Upload & manage video assets via API
-  - Receive and handle video lifecycle events (via webhook)
+- **JWT Authentication & Role Management**
+Stateless auth with refresh tokens and role-based access (Admin, Instructor, Student).
+
+- **Secure Video Lifecycle via Mux API**
+Create uploads, receive webhooks, and manage playback securely.
+
 - **Course & Lesson Management**
--  **Track progress and analytics**
-- **Hybrid database design** (PostgreSQL + MongoDB)
-- **Admin-only upload endpoints**
-- **Asynchronous webhook event processing**
+Create and structure course content with versioning and metadata stored in MongoDB.
+
+- **Student Progress & Analytics Tracking**
+Track lesson completion, playback progress, and generate insights.
+
+- **Hybrid Database Architecture**
+PostgreSQL for transactional consistency, MongoDB for flexibility and scalability.
+
+- **Asynchronous Webhook Handling**
+Fully async FastAPI routes for low latency and concurrency.
+
+- **Scalable Modular Codebase**
+Clear separation of concerns and multi-layered architecture for maintainability.
 
 ---
 
@@ -41,7 +58,7 @@ It supports **hybrid database storage** (SQL + NoSQL), **role-based access**, an
 | **Caching Layer** | Rate limiting, caching | Redis + aioredis |
 | **Streaming API** | Secure video delivery | Mux API |
 | **Auth System** | Stateless security | JWT + Passlib |
-| **Infrastructure** | Dev and local testing | Docker + ngrok |
+| **Infrastructure** | Dev and local testing | Docker + Pytest + HTTPX |
 
 ---
 
@@ -63,11 +80,36 @@ The platform implements a **hybrid PACELC-based architecture**, combining the st
 
 This architecture ensures users can **always access courses and watch videos** while preserving **strong consistency** where critical.
 
+### Database Structure
+
+```text
+SQL (PostgreSQL)
+ ├── users
+ ├── enrollments
+ ├── refresh_tokens
+ └── payments (future module)
+
+No-SQL (MongoDB)
+ ├── courses
+ ├── lessons
+ ├── progress
+ └── analytics
+```
+
+Each Mongo document references SQL user IDs when necessary — maintaining cross-DB consistency while optimizing read/write patterns.
+
 ---
 
 ## Security and Authentication
 
 The authentication system implements **JWT-based stateless authentication** with **hashed refresh tokens** for revocation support.
+
+| Token Type | Lifetime | Verification                        | Storage    |
+| ---------- | -------- | ----------------------------------- | ---------- |
+| Access     | Short    | Stateless, verified with secret key | None       |
+| Refresh    | Long     | DB-verified (hashed)                | PostgreSQL |
+
+
 
 1. **Access Tokens (stateless)**  
    Short-lived; contain user claims and are verified without DB lookup.  
@@ -77,6 +119,42 @@ The authentication system implements **JWT-based stateless authentication** with
    Long-lived; can be revoked by deleting or invalidating their hash.  
    → Provides controlled session management and logout functionality.
 
+
+---
+## Testing (working on it)
+
+### 1. Unit Tests
+
+**Goal:** Validate isolated logic and internal components, mocking all external dependencies.
+
+| Area                 | Tools                      | Mocked Components                 | Example                                   |
+| -------------------- | -------------------------- | --------------------------------- | ----------------------------------------- |
+| **Auth**             | `pytest` + `TestClient`    | Mock DB session                   | User registration and token rotation      |
+| **Admin Uploads**    | `pytest` + `unittest.mock` | Mux upload + Mongo draft lesson   | Verifies upload info is returned          |
+| **Lessons**          | `pytest-asyncio`           | Mongo + SQL enrollment data       | Ensures access control + correct playback |
+| **Mux Webhooks**     | `HTTPX.AsyncClient`        | Mux signature verification        | Tests valid/invalid event payloads        |
+| **CRUD (SQL/Mongo)** | `pytest`                   | Async sessions + fake collections | Ensures inserts, updates, deletes         |
+
+### 2. Integration Tests
+
+**Goal:** Validate interaction between modules and databases under real conditions.
+
+Built using **Docker Compose** with PostgreSQL, MongoDB, Redis test containers and **pytest-asyncio** + **HTTPX.AsyncClient** for async tests.
+
+Each integration test launches the full FastAPI app with test containers and simulates end-to-end flows:
+
+* User registration → course enrollment → lesson playback
+* Admin uploads → Mux webhook triggers → lesson state update
+
+### 3. Fixtures & Utilities
+
+`conftest.py` defines reusable fixtures:
+
+* `client` / `async_client`: FastAPI test client (sync/async)
+* `mock_db_session`: Fake SQLAlchemy session (in-memory)
+* `mock_mongo`: Fake Motor client using `mongomock`
+* `mock_mux_service`: Patch `create_direct_upload()` and related Mux API calls
+* `admin_token` / `student_token`: Prebuilt JWTs for different roles
 ---
 
 ## Admin Uploads
@@ -166,3 +244,12 @@ app/
 
 ```
 ---
+
+##  Author
+
+**Adan Siqueira**  
+🔗 [GitHub Profile](https://github.com/AdanSiqueira)
+
+---
+
+If you like this project, don’t forget to ⭐ **star the repository** to show your support!
