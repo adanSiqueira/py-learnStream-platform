@@ -11,9 +11,12 @@ Routers:
 """
 
 import logging
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from app.core.config import settings
 from app.services.cache_service import init_redis, close_redis
@@ -69,6 +72,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Opening endpoint
+    @app.get("/", tags=["System"])
+    async def root():
+        html_path = Path("static/index.html")
+        if html_path.exists():
+            return FileResponse(html_path, media_type="text/html")
+        return {"message": "Welcome to the LearnStream API!"}
+
     # Routers
     app.include_router(auth_router)
     app.include_router(admin_router)
@@ -84,3 +95,6 @@ def create_app() -> FastAPI:
     return app
 
 app = create_app()
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

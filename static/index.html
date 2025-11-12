@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LearnStream API - Online Learning Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3776ab;
+            --primary-dark: #2d5f8a;
+            --primary-light: #4B8BBE;
+            --secondary: #FFD43B;
+            --secondary-dark: #FFC107;
+            --accent: #FFE873;
+            --bg-dark: #0a1628;
+            --bg-card: #1a2a3a;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #2a4a6a;
+            --success: #10b981;
+            --warning: #FFD43B;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1a2a3a 50%, #0a1628 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 4rem 2rem 3rem;
+            background: linear-gradient(135deg, rgba(55, 118, 171, 0.1) 0%, rgba(75, 139, 190, 0.1) 100%);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(55, 118, 171, 0.15) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3776ab 0%, #4B8BBE 50%, #FFD43B 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-top: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(55, 118, 171, 0.2);
+            border: 1px solid rgba(55, 118, 171, 0.3);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .badge:hover {
+            background: rgba(55, 118, 171, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .section {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: rgba(26, 42, 58, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(55, 118, 171, 0.2);
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 2rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary-dark));
+            border-radius: 2px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .feature-card {
+            padding: 1.5rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary);
+            background: rgba(55, 118, 171, 0.1);
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+            color: var(--primary);
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .stack-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .stack-table th,
+        .stack-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stack-table th {
+            background: rgba(55, 118, 171, 0.2);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .stack-table tr:hover {
+            background: rgba(55, 118, 171, 0.05);
+        }
+
+        .stack-table td:last-child {
+            color: var(--text-secondary);
+        }
+
+        .architecture {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .arch-card {
+            padding: 1.5rem;
+            background: rgba(15, 23, 42, 0.6);
+            border-left: 4px solid var(--primary);
+            border-radius: 0.5rem;
+        }
+
+        .arch-card h4 {
+            color: var(--primary);
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .arch-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .arch-card li {
+            padding: 0.5rem 0;
+            color: var(--text-secondary);
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .arch-card li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+        }
+
+        .endpoints {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .endpoint {
+            padding: 0.75rem 1.25rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: var(--success);
+        }
+
+        .endpoint.method {
+            background: rgba(55, 118, 171, 0.1);
+            border-color: rgba(55, 118, 171, 0.3);
+            color: var(--primary);
+        }
+
+        footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border);
+            margin-top: 4rem;
+            color: var(--text-secondary);
+        }
+
+        .footer-link {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-link:hover {
+            color: var(--secondary);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .section {
+                padding: 1.5rem;
+            }
+
+            .stack-table {
+                font-size: 0.9rem;
+            }
+
+            .stack-table th,
+            .stack-table td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+
+        .highlight {
+            color: var(--secondary);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>py-LearnStream Platform</h1>
+        <p class="subtitle">A production-grade backend API for online learning and secure video delivery</p>
+        <div class="badges">
+            <span class="badge">Python 3.11+</span>
+            <span class="badge">FastAPI</span>
+            <span class="badge">PostgreSQL</span>
+            <span class="badge">MongoDB</span>
+            <span class="badge">Redis</span>
+            <span class="badge">JWT Auth</span>
+            <span class="badge">Mux API</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <section class="section">
+            <h2 class="section-title">About</h2>
+            <p style="font-size: 1.1rem; color: var(--text-secondary); line-height: 1.8;">
+                <span class="highlight">LearnStream</span> is a modular, production-grade backend platform designed for 
+                <span class="highlight">online learning and secure video delivery</span>. It demonstrates a scalable 
+                system architecture that combines hybrid database patterns (SQL + NoSQL), event-driven communication, 
+                secure JWT-based authentication, role-based access control, and asynchronous webhooks.
+            </p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Key Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>🔐 JWT Authentication & Role Management</h3>
+                    <p>Stateless auth with refresh tokens and role-based access control (Admin, Instructor, Student).</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎥 Secure Video Lifecycle via Mux API</h3>
+                    <p>Create uploads, receive webhooks, and manage playback securely with Mux integration.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📚 Course & Lesson Management</h3>
+                    <p>Create and structure course content with versioning and metadata stored in MongoDB.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Student Progress & Analytics</h3>
+                    <p>Track lesson completion, playback progress, and generate insights for learners.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🗄️ Hybrid Database Architecture</h3>
+                    <p>PostgreSQL for transactional consistency, MongoDB for flexibility and scalability.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ Asynchronous Webhook Handling</h3>
+                    <p>Fully async FastAPI routes for low latency and high concurrency.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Technology Stack</h2>
+            <table class="stack-table">
+                <thead>
+                    <tr>
+                        <th>Layer</th>
+                        <th>Purpose</th>
+                        <th>Technology</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>API Layer</strong></td>
+                        <td>Async backend for requests</td>
+                        <td>FastAPI</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Relational (CP/EC)</strong></td>
+                        <td>Authentication, enrollments, payments</td>
+                        <td>PostgreSQL + SQLAlchemy</td>
+                    </tr>
+                    <tr>
+                        <td><strong>NoSQL (AP/EL)</strong></td>
+                        <td>Courses, lessons, analytics, progress</td>
+                        <td>MongoDB + Motor</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Caching Layer</strong></td>
+                        <td>Rate limiting, caching</td>
+                        <td>Redis + aioredis</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Streaming API</strong></td>
+                        <td>Secure video delivery</td>
+                        <td>Mux API</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Auth System</strong></td>
+                        <td>Stateless security</td>
+                        <td>JWT + Passlib</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Infrastructure</strong></td>
+                        <td>Dev and local testing</td>
+                        <td>Docker + Pytest + HTTPX</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Database Architecture</h2>
+            <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                The platform implements a <span class="highlight">hybrid PACELC-based architecture</span>, combining 
+                the strengths of <strong>CP</strong> (Consistency-Partition) and <strong>AP</strong> (Availability-Partition) systems.
+            </p>
+            <div class="architecture">
+                <div class="arch-card">
+                    <h4>PostgreSQL (CP/EC)</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem;">
+                        Consistency-first for critical operations
+                    </p>
+                    <ul>
+                        <li>users</li>
+                        <li>enrollments</li>
+                        <li>refresh_tokens</li>
+                        <li>payments (future)</li>
+                    </ul>
+                </div>
+                <div class="arch-card">
+                    <h4>MongoDB (AP/EL)</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem;">
+                        Availability-first for scalable content
+                    </p>
+                    <ul>
+                        <li>courses</li>
+                        <li>lessons</li>
+                        <li>progress</li>
+                        <li>analytics</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">API Endpoints</h2>
+            <div class="endpoints">
+                <span class="endpoint method">GET /</span>
+                <span class="endpoint method">GET /health</span>
+                <span class="endpoint">POST /auth/register</span>
+                <span class="endpoint">POST /auth/login</span>
+                <span class="endpoint">POST /auth/refresh</span>
+                <span class="endpoint">POST /auth/logout</span>
+                <span class="endpoint">GET /courses</span>
+                <span class="endpoint">POST /courses</span>
+                <span class="endpoint">GET /lessons/{lesson_id}</span>
+                <span class="endpoint">POST /admin/uploads</span>
+                <span class="endpoint">POST /webhooks/mux</span>
+            </div>
+            <p style="margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.95rem;">
+                For detailed API documentation, visit <code style="color: var(--primary);">/docs</code> (Swagger UI) 
+                or <code style="color: var(--primary);">/redoc</code> (ReDoc) when the server is running.
+            </p>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Security & Authentication</h2>
+            <p style="margin-bottom: 1rem; color: var(--text-secondary);">
+                The platform implements <span class="highlight">JWT-based stateless authentication</span> with 
+                <span class="highlight">hashed refresh tokens</span> for revocation support.
+            </p>
+            <div style="margin-top: 1.5rem; padding: 1.5rem; background: rgba(15, 23, 42, 0.6); border-radius: 0.5rem; border: 1px solid var(--border);">
+                <h4 style="color: var(--primary); margin-bottom: 1rem;">Token Strategy</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 0.5rem 0; color: var(--text-secondary);">
+                        <strong style="color: var(--text-primary);">Access Tokens:</strong> Short-lived, stateless, verified without DB lookup
+                    </li>
+                    <li style="padding: 0.5rem 0; color: var(--text-secondary);">
+                        <strong style="color: var(--text-primary);">Refresh Tokens:</strong> Long-lived, hashed & stored in PostgreSQL for revocation
+                    </li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>
+            Built by <a href="https://github.com/AdanSiqueira" class="footer-link" target="_blank">Adan Siqueira</a>
+        </p>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+            If you like this project, don't forget to ⭐ <strong>star the repository</strong>!
+        </p>
+    </footer>
+</body>
+</html>
+
