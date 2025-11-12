@@ -71,7 +71,7 @@ class TokenOut(BaseModel):
         refresh_token (str): JWT refresh token to obtain new access tokens.
         token_type (str): Type of token, default is "bearer".
     """
-    acess_token: str
+    access_token: str
     refresh_token: str
     token_type: str = "bearer"
 

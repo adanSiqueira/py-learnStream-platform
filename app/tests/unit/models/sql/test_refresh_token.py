@@ -6,7 +6,8 @@ def test_refresh_token_creation():
     token = RefreshToken(
         user_id=7,
         token_hash="hash_value",
-        expires_at=datetime(2025, 12, 1)
+        expires_at=datetime(2025, 12, 1),
+        issued_at=datetime.now()
     )
 
     assert token.user_id == 7

@@ -11,7 +11,8 @@ def test_user_instance_creation():
     user = User(
         name="Ada Lovelace",
         email="ada@example.com",
-        password_hash="hashed_pw"
+        password_hash="hashed_pw",
+        role=UserRole.student
     )
 
     assert user.name == "Ada Lovelace"

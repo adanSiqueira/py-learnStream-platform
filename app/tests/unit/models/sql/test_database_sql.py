@@ -9,7 +9,7 @@ async def test_get_db_yields_session():
     
     with patch.object(database, "AsyncSessionLocal", return_value=fake_session):
         async for db in database.get_db():
-            assert db is fake_session
+            assert db == fake_session.__aenter__.return_value
         fake_session.__aexit__.assert_called_once()
 
 def test_engine_and_base_configuration():

@@ -9,7 +9,7 @@ stateless access and refresh token management.
 from typing import Any, Dict
 from passlib.context import CryptContext
 from app.core import config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -58,12 +58,20 @@ def create_access_token(subject: str | int, extra: Dict[str, Any] = None) -> str
         - The 'sub' claim identifies the user, while 'exp' defines token expiration.
         - The token is cryptographically signed using the application's SECRET and ALGO.
     """
-    expire = datetime.now() + timedelta(minutes = config.settings.ACESS_TOKEN_EXPIRE_MINUTES)
-    payload = {'sub': str(subject), 'exp': expire}
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=config.settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    payload = {
+        "sub": str(subject),
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+        "token_type": "access"
+    }
     if extra:
         payload.update(extra)
-    
+
     token = jwt.encode(payload, SECRET, algorithm=ALGO)
+
     return token
 
 def create_refresh_token(subject: str | int) -> str:

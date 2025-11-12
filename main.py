@@ -1,6 +1,6 @@
 """
 This file initializes the FastAPI instance, configures middleware, logging,
-and event handlers, and registers all modular routers across the application.
+and lifespan events, and registers all modular routers across the application.
 
 Routers:
     - Auth (/auth)
@@ -13,6 +13,7 @@ Routers:
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.services.cache_service import init_redis, close_redis
@@ -30,7 +31,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# FastAPI Application Instance
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Defines startup and shutdown lifecycle logic for the FastAPI application.
+    Replaces the deprecated @app.on_event("startup") and @app.on_event("shutdown") decorators.
+    """
+    # --- Startup ---
+    await init_redis()
+    logger.info("Redis connection established.")
+    
+    yield  # Application runs during this period
+
+    # --- Shutdown ---
+    await close_redis()
+    logger.info("Redis connection closed.")
+
+
 def create_app() -> FastAPI:
     """
     Application factory pattern for creating and configuring the FastAPI app.
@@ -38,7 +56,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="LearnStream API",
         version="1.0.0",
-        description="Backend API for LearnStream platform, including lessons, authentication, and video handling."
+        description="Backend API for LearnStream platform, including lessons, authentication, and video handling.",
+        lifespan=lifespan,  # Modern lifespan context manager
     )
 
     # Middleware (CORS, etc.)
@@ -57,17 +76,6 @@ def create_app() -> FastAPI:
     app.include_router(mux_webhooks_router)
     app.include_router(courses_router)
 
-    # Events
-    @app.event("startup")
-    async def on_startup():
-        await init_redis()
-        logger.info("Redis connection established.")
-
-    @app.event("shutdown")
-    async def on_shutdown():
-        await close_redis()
-        logger.info("Redis connection closed.")
-
     # Health Check
     @app.get("/health", tags=["System"])
     async def health_check():
@@ -75,5 +83,4 @@ def create_app() -> FastAPI:
 
     return app
 
-if __name__ == "__main__":
-    app = create_app()
+app = create_app()

@@ -13,7 +13,7 @@ Used By:
     - User management endpoints (registration, login, role assignment, etc.).
 """
 from .database import Base
-from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Enum, func
 from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
@@ -44,8 +44,14 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.student, nullable=False)
-    created_at = Column(DateTime, default = datetime.now(), nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.student, server_default="student", nullable=False)
+    created_at = Column(DateTime, default = datetime.now, server_default=func.now(), nullable=False)
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     enrollments = relationship("Enrollment", back_populates="user", cascade="all, delete-orphan")
+    
+    def __init__(self, **kwargs):
+        """Initialize User instance with default created_at if not provided."""
+        if 'created_at' not in kwargs:
+            kwargs['created_at'] = datetime.now()
+        super().__init__(**kwargs)

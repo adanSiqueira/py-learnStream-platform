@@ -1,2 +1,2 @@
-from deps import *
-from router import *
+from .deps import *
+from .router import *

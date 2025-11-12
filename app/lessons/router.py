@@ -63,7 +63,7 @@ async def get_playback(
 
     lesson = await get_lesson(lesson_id)
     if not lesson:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not foud")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found")
     
     ## Ensure lesson has Mux Metadata.
     mux_meta = lesson.get("mux") or {}

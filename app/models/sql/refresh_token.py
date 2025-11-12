@@ -14,9 +14,10 @@ Used By:
 """
 
 from .database import Base
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, String
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, String, func
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from sqlalchemy.orm import Mapped, mapped_column
 
 class RefreshToken(Base):
     """
@@ -35,8 +36,8 @@ class RefreshToken(Base):
     id = Column(Integer, primary_key = True)
     user_id = Column(Integer, ForeignKey('users.id'), index=True)
     token_hash = Column(String(255), nullable=False)
-    issued_at = Column(DateTime, default=datetime.now())
-    expires_at =  Column(DateTime)
+    issued_at = Column(DateTime, default=datetime.now, nullable=False)
+    expires_at =  Column(DateTime, nullable = False)
     revoked = Column(Boolean, default = False)
 
     # Relationship to User

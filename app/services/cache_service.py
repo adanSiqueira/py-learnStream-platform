@@ -5,7 +5,7 @@ for caching and temporary data storage across services.
 It's used to store short-lived signed URLs, tokens, and other
 frequently accessed items to reduce database or API calls.
 """
-import aioredis
+from redis import asyncio as aioredis
 from typing import Optional
 from app.core.config import settings
 

@@ -6,7 +6,8 @@ including security parameters (JWT), database URIs, and expiration rules.
 It uses Pydantic's BaseSettings to automatically load variables from
 the environment or a .env file, with type validation and defaults.
 """
-from pydantic import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List
 
 class Settings(BaseSettings):
     """
@@ -32,6 +33,9 @@ class Settings(BaseSettings):
     REDIS_URL: str
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
+    CORS_ALLOWED_ORIGINS: List[str] = ["*"]
 
     model_config = SettingsConfigDict(
         env_file=".env",

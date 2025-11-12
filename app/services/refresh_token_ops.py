@@ -31,7 +31,7 @@ async def save_refresh_token(
         token_hash=hashed_token,
         expires_at=expires_at,
     )
-    db.add(token)
+    await db.add(token)
     await db.commit()
     await db.refresh(token)
     return token
