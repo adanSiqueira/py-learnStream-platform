@@ -61,6 +61,57 @@ Clear separation of concerns and multi-layered architecture for maintainability.
 | **Infrastructure** | Dev and local testing | Docker + Pytest + HTTPX |
 
 ---
+---
+
+##  Folder Structure
+
+```bash
+app/
+├── tests/                     # DETAILED BELOW on this README.
+├── admin/
+│   ├── router.py              # Admin-only endpoints (e.g., secure Mux uploads, management tasks)
+│
+├── auth/
+│   ├── router.py              # Authentication routes (login, register, refresh tokens)
+│   ├── deps.py                # Auth-related FastAPI dependencies (JWT validation, user extraction)
+│
+├── core/
+│   ├── config.py              # Centralized environment configuration (loaded from .env via Pydantic)
+│
+├── courses/
+│   ├── router.py              # REST endpoints for course creation, listing, and management
+│
+├── lessons/
+│   ├── router.py              # Endpoints for lesson delivery, metadata, and Mux video references
+│
+├── models/
+│   ├── sql/                   # Relational data models (PostgreSQL via SQLAlchemy)
+│   │   ├── user.py            # User entity (credentials, roles, timestamps)
+│   │   ├── enrollment.py      # User–Course enrollment model
+│   │   ├── refresh_token.py   # Persistent refresh token storage (hashed)
+│   │   ├── database.py        # Async SQLAlchemy engine, session factory, and Base metadata
+│   │
+│   ├── nosql/                 # NoSQL data schemas (MongoDB via Motor)
+│       ├── course.py          # Course schema and structure for MongoDB
+│       ├── lesson.py          # Lesson schema, including Mux asset references
+│       ├── progress.py        # User progress tracking schema
+│       ├── database.py        # MongoDB connection setup and database access layer
+│
+├── mux_webhooks/
+│   ├── router.py              # Mux webhook routes (video.asset.created, video.asset.ready, etc.)
+│
+├── services/
+│   ├── cache_service.py       # Redis caching layer for temporary data, tokens, and rate limiting
+│   ├── mux_service.py         # Mux API client: asset creation, upload URL generation, event utilities
+│   ├── refresh_token_ops.py   # Refresh token operations: rotation, revocation, persistence
+│   ├── security.py            # Password hashing, JWT generation/verification, token utilities
+│   ├── user_ops.py            # User-related business logic (registration, profile handling)
+│
+└── main.py                    # FastAPI entry point — creates the app, loads routers and settings
+
+```
+
+---
 
 ##  Database Architecture
 
@@ -121,15 +172,129 @@ The authentication system implements **JWT-based stateless authentication** with
 
 
 ---
-## Testing (working on it)
+## Testing
+
+The platform includes a comprehensive test suite covering unit tests, integration tests, and end-to-end scenarios. All tests use **pytest** with **pytest-asyncio** for async support.
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest app/tests/unit/auth/test_deps.py
+
+# Run specific test
+pytest app/tests/unit/auth/test_deps.py::test_get_current_user_valid_token
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run only unit tests
+pytest app/tests/unit/
+
+# Run only integration tests
+pytest app/tests/integration/
+```
+
+### Test Structure
+
+```
+app/tests/
+├── conftest.py                    # Shared fixtures and test configuration
+├── unit/                          # Unit tests (isolated, mocked dependencies)
+│   ├── admin/
+│   │   └── test_router_admin.py   # Admin endpoints (uploads, RBAC)
+│   ├── auth/
+│   │   ├── test_deps.py           # Authentication dependencies (JWT, user extraction)
+│   │   └── test_router_auth.py    # Auth routes (login, register, refresh)
+│   ├── core/
+│   │   └── test_config.py         # Configuration loading and validation
+│   ├── courses/
+│   │   └── test_router_courses.py # Course management endpoints
+│   ├── lessons/
+│   │   └── test_router_lessons.py # Lesson playback and access control
+│   ├── models/
+│   │   ├── sql/                   # SQL model tests (User, Enrollment, etc.)
+│   │   └── no_sql/                # MongoDB model tests (Course, Lesson, Progress)
+│   ├── mux_webhooks/
+│   │   └── test_router_muxwebhook.py  # Mux webhook handling
+│   └── services/
+│       ├── test_cache_service.py      # Redis caching operations
+│       ├── test_mux_services.py       # Mux API integration
+│       ├── test_security.py           # JWT and password hashing
+│       ├── test_user_ops.py           # User business logic
+│       └── test_refresh_token_ops.py  # Refresh token management
+└── integration/                   # Integration tests (real DB connections)
+    ├── docker-compose.yml        # Test containers setup
+    ├── test_end_to_end.py         # Full workflow tests
+    └── test_sql_models_integration.py  # SQLAlchemy integration
+```
 
 ### 1. Unit Tests
 
 **Goal:** Validate isolated logic and internal components, mocking all external dependencies.
 
+#### Authentication Tests (`app/tests/unit/auth/`)
+
+- **`test_deps.py`**: Tests JWT token validation, user extraction, and exception handling
+  - Valid token decoding and user retrieval
+  - Expired token handling
+  - Invalid token handling
+  - User not found scenarios
+  
+- **`test_router_auth.py`**: Tests authentication endpoints
+  - User registration
+  - Login flow
+  - Token refresh
+  - Logout functionality
+
+#### Admin Tests (`app/tests/unit/admin/`)
+
+- **`test_router_admin.py`**: Tests admin-only endpoints
+  - Role-based access control (RBAC) validation
+  - Mux direct upload creation
+  - Draft lesson creation
+  - Error handling for failed uploads
+
+**Key Testing Pattern:** Mocks are applied at the router import level (e.g., `app.admin.router.create_direct_upload`) to ensure patches work correctly with FastAPI's dependency injection.
+
+#### Lesson Tests (`app/tests/unit/lessons/`)
+
+- **`test_router_lessons.py`**: Tests lesson playback endpoints
+  - Lesson retrieval and validation
+  - Enrollment verification
+  - Mux playback URL generation
+  - Access control (403 for non-enrolled users)
+  - Missing metadata handling
+
+#### Service Tests (`app/tests/unit/services/`)
+
+- **`test_security.py`**: Password hashing, JWT generation/decoding
+- **`test_mux_services.py`**: Mux API client operations
+- **`test_cache_service.py`**: Redis caching layer
+- **`test_user_ops.py`**: User database operations
+- **`test_refresh_token_ops.py`**: Refresh token management
+
+#### Model Tests (`app/tests/unit/models/`)
+
+**SQL Models:**
+- User model operations
+- Enrollment CRUD
+- Refresh token storage
+
+**NoSQL Models:**
+- Course document operations
+- Lesson document operations
+- Progress tracking
+
 | Area                 | Tools                      | Mocked Components                 | Example                                   |
 | -------------------- | -------------------------- | --------------------------------- | ----------------------------------------- |
-| **Auth**             | `pytest` + `TestClient`    | Mock DB session                   | User registration and token rotation      |
+| **Auth**             | `pytest` + `TestClient`    | Mock DB session, JWT decode       | User registration and token rotation      |
 | **Admin Uploads**    | `pytest` + `unittest.mock` | Mux upload + Mongo draft lesson   | Verifies upload info is returned          |
 | **Lessons**          | `pytest-asyncio`           | Mongo + SQL enrollment data       | Ensures access control + correct playback |
 | **Mux Webhooks**     | `HTTPX.AsyncClient`        | Mux signature verification        | Tests valid/invalid event payloads        |
@@ -146,15 +311,55 @@ Each integration test launches the full FastAPI app with test containers and sim
 * User registration → course enrollment → lesson playback
 * Admin uploads → Mux webhook triggers → lesson state update
 
-### 3. Fixtures & Utilities
+**Running Integration Tests:**
+```bash
+# Start test containers
+cd app/tests/integration
+docker-compose up -d
 
-`conftest.py` defines reusable fixtures:
+# Run integration tests
+pytest app/tests/integration/
 
-* `client` / `async_client`: FastAPI test client (sync/async)
-* `mock_db_session`: Fake SQLAlchemy session (in-memory)
-* `mock_mongo`: Fake Motor client using `mongomock`
-* `mock_mux_service`: Patch `create_direct_upload()` and related Mux API calls
-* `admin_token` / `student_token`: Prebuilt JWTs for different roles
+# Cleanup
+docker-compose down
+```
+
+### 3. Test Fixtures & Utilities
+
+`conftest.py` defines reusable fixtures and utilities:
+
+**Fixtures:**
+- `client`: FastAPI `TestClient` for synchronous HTTP requests
+- `mock_auth`: Automatically mocks authentication for all tests
+- `override_get_current_user`: Global authentication override for test isolation
+
+**Utilities:**
+- `FakeResult`: Mock SQLAlchemy result object for testing database queries
+- Dependency overrides for FastAPI's dependency injection system
+
+**Testing Patterns:**
+
+1. **Mocking at Import Level**: Functions are patched where they're imported (e.g., `app.admin.router.create_direct_upload`) rather than where they're defined, ensuring FastAPI's dependency injection works correctly.
+
+2. **Dependency Overrides**: FastAPI's `app.dependency_overrides` is used to replace authentication and database dependencies in tests.
+
+3. **Async Testing**: All async functions are tested using `pytest.mark.asyncio` and `AsyncMock` from `unittest.mock`.
+
+4. **Isolated Test Logic**: For complex dependencies (like `get_current_user` with `Depends(oauth2_scheme)`), tests replicate the core logic directly to avoid dependency injection complications.
+
+### Test Coverage
+
+The test suite covers:
+-  Authentication and authorization flows
+-  Admin operations (uploads, RBAC)
+-  Course and lesson management
+-  Mux API integration
+-  Database operations (SQL and NoSQL)
+-  Service layer business logic
+-  Error handling and edge cases
+
+**Note:** Integration tests require Docker and test containers. Ensure Docker is running before executing integration test suites.
+
 ---
 
 ## Admin Uploads
@@ -195,54 +400,7 @@ Each event is verified for authenticity using **Mux signature headers** and logg
 
    MUX_WEBHOOK_SECRET=your_signing_secret
 
----
 
-## 🧾 Folder Structure
-
-```bash
-app/
-├── admin/
-│   ├── router.py              # Admin-only endpoints (e.g., secure Mux uploads, management tasks)
-│
-├── auth/
-│   ├── router.py              # Authentication routes (login, register, refresh tokens)
-│   ├── deps.py                # Auth-related FastAPI dependencies (JWT validation, user extraction)
-│
-├── core/
-│   ├── config.py              # Centralized environment configuration (loaded from .env via Pydantic)
-│
-├── courses/
-│   ├── router.py              # REST endpoints for course creation, listing, and management
-│
-├── lessons/
-│   ├── router.py              # Endpoints for lesson delivery, metadata, and Mux video references
-│
-├── models/
-│   ├── sql/                   # Relational data models (PostgreSQL via SQLAlchemy)
-│   │   ├── user.py            # User entity (credentials, roles, timestamps)
-│   │   ├── enrollment.py      # User–Course enrollment model
-│   │   ├── refresh_token.py   # Persistent refresh token storage (hashed)
-│   │   ├── database.py        # Async SQLAlchemy engine, session factory, and Base metadata
-│   │
-│   ├── nosql/                 # NoSQL data schemas (MongoDB via Motor)
-│       ├── course.py          # Course schema and structure for MongoDB
-│       ├── lesson.py          # Lesson schema, including Mux asset references
-│       ├── progress.py        # User progress tracking schema
-│       ├── database.py        # MongoDB connection setup and database access layer
-│
-├── mux_webhooks/
-│   ├── router.py              # Mux webhook routes (video.asset.created, video.asset.ready, etc.)
-│
-├── services/
-│   ├── cache_service.py       # Redis caching layer for temporary data, tokens, and rate limiting
-│   ├── mux_service.py         # Mux API client: asset creation, upload URL generation, event utilities
-│   ├── refresh_token_ops.py   # Refresh token operations: rotation, revocation, persistence
-│   ├── security.py            # Password hashing, JWT generation/verification, token utilities
-│   ├── user_ops.py            # User-related business logic (registration, profile handling)
-│
-└── main.py                    # FastAPI entry point — creates the app, loads routers and settings
-
-```
 ---
 
 ##  Author
