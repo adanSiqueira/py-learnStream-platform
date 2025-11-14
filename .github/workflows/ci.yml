@@ -44,10 +44,11 @@ jobs:
       - name: Run linter (ruff)
         run: |
           ruff check .
+      
+      - name: Run Alembic migrations
+        run: |
+          alembic upgrade head
 
       - name: Run unit tests (pytest)
         run: |
           pytest -q --maxfail=1
-          
-      - name: Run Alembic migrations
-        run: alembic upgrade head
