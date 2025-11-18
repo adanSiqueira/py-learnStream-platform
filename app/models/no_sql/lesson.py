@@ -109,17 +109,79 @@ async def delete_lesson(lesson_id: str) -> None:
     """
     await lessons_collection.delete_one({"_id": ObjectId(lesson_id)})
 
-async def create_draft_lesson(course_id: str, title: str, description: str, upload_id: str = None):
+async def create_draft_lesson(
+    course_id: str = None,
+    title: str = "Untitled Lesson",
+    description: str = "",
+    upload_id: str = None,
+    asset_id: str = None,
+    playback_id: str = None,
+    status: str = "uploading",
+    upload_method: str = None
+):
+    """
+    Create a draft lesson document in the database.
+
+    This helper function is used by admin endpoints to create a lesson entry
+    before the video is fully processed or available. It stores metadata about
+    the Mux upload/asset and returns the newly created lesson ID.
+
+    Parameters
+    ----------
+    course_id : str, optional
+        The ID of the course this lesson belongs to. Converted to ObjectId if provided.
+    title : str, optional
+        The lesson title. Defaults to "Untitled Lesson".
+    description : str, optional
+        A text description of the lesson.
+    upload_id : str, optional
+        The Mux direct-upload ID (used when file is uploaded via Mux Upload API).
+    asset_id : str, optional
+        The Mux asset ID (used when video already exists or is created from URL).
+    playback_id : str, optional
+        The Mux playback ID, if available.
+    status : str, optional
+        Current processing status. Usually "uploading" or "processing".
+        Defaults to "uploading".
+    upload_method : str, optional
+        Indicates how the lesson video was provided:
+        - "direct_upload"
+        - "from_url"
+        - "existing_asset"
+        or None.
+
+    Returns
+    -------
+    str
+        The ID of the newly created lesson document (as a string).
+
+    Notes
+    -----
+    - The function inserts a minimal draft structure; additional fields like
+      duration, thumbnail, manifest, etc. will be filled later once Mux processes the asset.
+    - The returned lesson ID is used by the frontend/admin panel to track progress
+      and eventually update the lesson when processing completes.
+    """
     lesson = {
         "course_id": ObjectId(course_id) if course_id else None,
         "title": title,
         "description": description,
         "mux": {
+            "asset_id": asset_id,
             "upload_id": upload_id,
-            "status": "uploading"
+            "playback_id": playback_id,
+            "status": status,
+            "duration": None,
+            "thumbnail_url": None,
+            "poster_url": None,
+            "manifest_url": None,
+            "watch_page_url": None,
+            "visibility": "private",
+            "upload_method": upload_method,
         },
         "created_at": datetime.now(),
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(),
     }
+
     res = await lessons_collection.insert_one(lesson)
     return str(res.inserted_id)

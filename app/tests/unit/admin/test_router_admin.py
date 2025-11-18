@@ -87,3 +87,84 @@ async def test_create_upload_mux_failure(mock_mux):
     assert "Failed to create Mux upload" in resp.text
     
     app.dependency_overrides.clear()
+
+# ============================================================
+# NEW TESTS FOR NEW ENDPOINTS (FIXED)
+# ============================================================
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.post", new_callable=AsyncMock)
+@patch("app.admin.router.create_draft_lesson", new_callable=AsyncMock)
+async def test_create_asset_from_url_success(mock_draft, mock_http_post):
+    """Should create Mux asset from URL and create draft lesson."""
+    mock_draft.return_value = "lesson_imported_1"
+
+    # Mock Mux response
+    mock_http_post.return_value.json = MagicMock(return_value={
+        "data": {
+            "id": "asset_123",
+            "playback_ids": [{"id": "pb1"}],
+        }
+    })
+    mock_http_post.return_value.raise_for_status = MagicMock()
+
+    resp = client.post(
+        "/admin/uploads/from-url",
+        data={"video_url": "http://example.com/video.mp4", "title": "Imported"}
+    )
+
+    data = resp.json()
+    assert resp.status_code == 200
+
+    # asset fields
+    assert data["asset"]["id"] == "asset_123"
+    assert data["asset"]["playback_id"] == "pb1"
+
+    # lesson fields
+    assert data["lesson"]["id"] == "lesson_imported_1"
+    # the endpoint **does not** return lesson.status anymore
+
+
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.get", new_callable=AsyncMock)
+@patch("app.admin.router.create_draft_lesson", new_callable=AsyncMock)
+async def test_import_existing_mux_asset_success(mock_draft, mock_http_get):
+    """Should import existing Mux asset successfully."""
+    mock_draft.return_value = "lesson_existing_1"
+
+    mock_http_get.return_value.json = MagicMock(return_value={
+        "data": {"id": "asset_existing", "status": "ready"}
+    })
+    mock_http_get.return_value.raise_for_status = MagicMock()
+
+    resp = client.post(
+        "/admin/uploads/import-existing",
+        data={"asset_id": "asset_existing", "course_id": "123"}
+    )
+    data = resp.json()
+
+    assert resp.status_code == 200
+
+    # asset fields
+    assert data["asset"]["id"] == "asset_existing"
+    assert data["asset"]["status"] == "ready"
+
+    # lesson fields
+    assert data["lesson"]["id"] == "lesson_existing_1"
+    # the endpoint does NOT return lesson.status anymore
+
+
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.get", new_callable=AsyncMock)
+async def test_import_existing_mux_asset_not_found(mock_http_get):
+    """Should return 404 when Mux asset does not exist."""
+    mock_http_get.return_value.json = MagicMock(return_value={"data": {}})
+    mock_http_get.return_value.raise_for_status.side_effect = Exception("404 Not Found")
+
+    resp = client.post(
+        "/admin/uploads/import-existing",
+        data={"asset_id": "wrong_id", "course_id": "123"}
+    )
+
+    # router raises HTTPException(404)
+    assert resp.status_code == 404
+    assert "Not Found" in resp.text

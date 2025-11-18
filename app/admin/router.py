@@ -8,13 +8,23 @@ uploads and managing platform-level operations that require elevated privileges.
 Endpoints:
     - POST /admin/admin-only: Simple RBAC demonstration route.
     - POST /admin/uploads: Initiate a new video upload flow for lessons.
+    - POST /admin/uploads/from-url
+    - POST /admin/uploads/import-existing
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Form
+import httpx
 from app.auth.deps import require_role, get_current_user
 from app.services.mux_service import create_direct_upload
 from app.models.no_sql.lesson import create_draft_lesson
+from app.core.config import settings
 
 router = APIRouter(prefix="/admin")
+MUX_API_BASE = "https://api.mux.com"
+MUX_TOKEN_SECRET = settings.MUX_TOKEN_SECRET
+MUX_TOKEN_ID = settings.MUX_TOKEN_ID
+MUX_WEBHOOK_SECRET = settings.MUX_WEBHOOK_SECRET
+
+auth = (MUX_TOKEN_ID, MUX_TOKEN_SECRET)
 
 @router.post("/admin-only")
 async def admin_action(user=Depends(require_role(["admin"]))):
@@ -90,3 +100,135 @@ async def create_upload(
             "created_by": str(current_user.id),
         },
     }
+
+# ===============================================================
+# NEW ENDPOINTS - Upload-from-URL and Import-for-existing-in-MUX
+# ===============================================================
+
+@router.post("/uploads/from-url")
+async def create_asset_from_url(
+    video_url: str = Form(...),
+    title: str = Form("Imported video"),
+    description: str = Form("Imported via URL")
+):
+    """
+    Create a Mux asset directly from an external URL and register it as a draft lesson.
+
+    This does **not** use the Mux Direct Upload flow. Instead, it:
+        1. Sends a POST request to Mux's `/assets` endpoint with a public video URL.
+        2. Mux pulls the video from the specified URL.
+        3. Stores the returned asset ID + playback IDs into your local database.
+
+    Useful when:
+        - The video already exists on a public bucket/server.
+        - Admins want to import remote videos without uploading files.
+
+    Args:
+        video_url (str): Publicly accessible URL containing the MP4 file.
+        title (str): Title of the draft lesson.
+        description (str): Description of the draft lesson.
+
+    Returns:
+        dict: Mux asset details + created lesson metadata.
+    """
+    async with httpx.AsyncClient(auth=auth) as client:
+        response = await client.post(
+            "https://api.mux.com/video/v1/assets",
+            json={
+                "input": video_url,
+                "playback_policy": ["public"],
+                "encoding_tier": "baseline"
+            }
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+
+    # You should store the mux asset ID in your lessons database
+    asset_id = data["id"]
+    playback_ids = data["playback_ids"]
+
+    lesson_id = await create_draft_lesson(
+    title=title,
+    description=description,
+    asset_id=asset_id,
+    playback_id=playback_ids[0]["id"] if playback_ids else None,
+    status=data.get("status", "processing"),
+    upload_method="url-import"
+    )
+
+    return {
+    "status": "success",
+    "lesson": {
+        "id": lesson_id,
+        "status": data.get("status", "processing")
+    },
+    "asset": {
+        "id": asset_id,
+        "playback_id": playback_ids[0]["id"] if playback_ids else None
+    }
+    }
+
+
+@router.post("/uploads/import-existing")
+async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = Form(...)):
+    """
+    Import a video already stored in Mux and register it as a lesson in the platform.
+
+    This endpoint retrieves metadata for an existing Mux asset using its ID, then
+    stores a new lesson entry referencing that asset.
+
+    Typical use cases:
+        - Migrating content from an older system.
+        - Registering assets uploaded manually through the Mux dashboard.
+        - Recovering orphaned assets.
+
+    Args:
+        asset_id (str): ID of an already existing Mux asset.
+
+    Returns:
+        dict: Asset metadata + created lesson metadata.
+    """
+    # get asset details from Mux to validate it
+    async with httpx.AsyncClient() as client:
+        url = f"https://api.mux.com/video/v1/assets/{asset_id}"
+
+        try:
+            resp = await client.get(url, auth=(MUX_TOKEN_ID, MUX_TOKEN_SECRET))
+            resp.raise_for_status()
+        except Exception as e:
+            raise HTTPException(
+                status_code=404,
+                detail="Mux asset Not Found"
+            )
+
+        data = resp.json().get("data", {})
+
+        if not data or data.get("id") is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Mux asset Not Found"
+            )
+
+        lesson_id = await create_draft_lesson(
+            course_id=course_id,
+            title="Imported Mux Asset",
+            description=f"Imported existing asset {asset_id}",
+            asset_id=data["id"],
+            playback_id=data.get("playback_ids", [{}])[0].get("id"),
+            status=data.get("status", "ready"),
+            upload_method="import-existing"
+        )
+
+        return {
+            "status": "success",
+            "lesson": {
+                "id": lesson_id,
+                "status": data.get("status")
+            },
+            "asset": {
+                "id": data["id"],
+                "status": data.get("status")
+                }
+            }
+
+
