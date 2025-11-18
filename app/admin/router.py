@@ -170,7 +170,7 @@ async def create_asset_from_url(
 
 
 @router.post("/uploads/import-existing")
-async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = Form(...)):
+async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = Form(...), lesson_title: str = None):
     """
     Import a video already stored in Mux and register it as a lesson in the platform.
 
@@ -211,8 +211,8 @@ async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = 
 
         lesson_id = await create_draft_lesson(
             course_id=course_id,
-            title="Imported Mux Asset",
-            description=f"Imported existing asset {asset_id}",
+            title=lesson_title,
+            description=f"Imported existing Mux asset {asset_id}",
             asset_id=data["id"],
             playback_id=data.get("playback_ids", [{}])[0].get("id"),
             status=data.get("status", "ready"),

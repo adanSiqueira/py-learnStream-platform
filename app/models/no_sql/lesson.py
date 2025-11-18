@@ -31,7 +31,7 @@ async def create_lesson(course_id: str, title: str, description: str, mux: dict)
         str: The string representation of the inserted lesson's ObjectId.
     """
     lesson = {
-        "course_id": ObjectId(course_id),
+        "course_id": ObjectId(course_id) if ObjectId.is_valid(course_id) else course_id,
         "title": title,
         "description": description,
         "created_at": datetime.now(),
@@ -163,7 +163,7 @@ async def create_draft_lesson(
       and eventually update the lesson when processing completes.
     """
     lesson = {
-        "course_id": ObjectId(course_id) if course_id else None,
+        "course_id": ObjectId(course_id) if ObjectId.is_valid(course_id) else course_id,
         "title": title,
         "description": description,
         "mux": {
