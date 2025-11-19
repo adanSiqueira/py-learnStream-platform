@@ -10,6 +10,7 @@ from typing import Any, Dict
 from passlib.context import CryptContext
 from app.core import config
 from datetime import datetime, timedelta, timezone
+import hashlib
 import jwt
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -125,24 +126,27 @@ def decode_token(token: str) -> dict:
 
 def hash_token(token: str) -> str:
     """
-    Hash a refresh token before storing it in the database.
+    Hash a refresh token before storing it in the database, using a deterministic SHA-256 hash for DB lookup.
 
     Args:
         token (str): The raw refresh token string to be hashed.
 
     Returns:
-        str: The bcrypt hash of the token, suitable for secure storage.
+        str: The hex-encoded SHA-256 digest of the token.
 
     Notes:
         - Refresh tokens are hashed for the same reason as passwords: 
           to prevent misuse if the database is compromised.
         - The original token is never stored directly, only its hash.
     """
-    return pwd_context.hash(token)
+    return hashlib.sha256(token.encode()).hexdigest()
 
-def verify_token_hash(token: str, hash_):
+def verify_token_hash(token: str, stored_hash: str) -> bool:
     """
-    Verify whether a provided refresh token matches its stored hash.
+    Verify whether a provided refresh token matches its stored SHA-256 hash.
+
+    Because SHA-256 is deterministic, verification is simply: 
+    sha256(token) == stored_hash
 
     Args:
         token (str): The raw refresh token received from the client.
@@ -157,4 +161,4 @@ def verify_token_hash(token: str, hash_):
         - Prevents attackers from using stolen token hashes directly, 
           since the verification process requires the original token.
     """
-    return pwd_context.verify(token, hash_)
+    return hash_token(token) == stored_hash

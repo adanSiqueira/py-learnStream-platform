@@ -152,7 +152,8 @@ async def refresh_token(data: RefreshIn, db: AsyncSession = Depends(get_db)):
     """
     try:
         payload = decode_token(data.refresh_token)
-        user_id: int = payload.get("sub")
+        user_id_raw = payload.get("sub")
+        user_id: int = int(user_id_raw)      ## Guarantee user_id is an integer
     except Exception:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired refresh token")
 
@@ -201,5 +202,5 @@ async def logout(current_user = Depends(get_current_user), db: AsyncSession = De
     Returns:
         dict: Contains a confirmation message: `{"detail": "Logged out"}`.
     """
-    await refresh_token_ops (db, current_user.id)
+    await refresh_token_ops.delete_all_refresh_tokens_for_user(db, current_user.id)
     return {'detail': 'Logged out'}
