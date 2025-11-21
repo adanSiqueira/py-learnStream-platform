@@ -25,7 +25,7 @@ from app.services import user_ops
 from app.services.mux_service import create_signed_manifest_url
 from app.models.no_sql.lesson import get_lesson
 
-router = APIRouter(prefix="/lessons")
+router = APIRouter(prefix="/lessons", tags=["Lessons"])
 
 @router.get("/{lesson_id}/playback")
 async def get_playback(

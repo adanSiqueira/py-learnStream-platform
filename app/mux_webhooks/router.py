@@ -24,7 +24,7 @@ from app.core.config import settings  # centralized environment management
 import logging
 from app.services.mux_service import verify_mux_signature, handle_mux_webhook
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 logger = logging.getLogger(__name__)
 
 # Secret from .env

@@ -15,7 +15,7 @@ Dependencies:
 """
 
 from fastapi import APIRouter, HTTPException, status
-from app.models.no_sql.course import list_courses, get_course
+from app.models.no_sql.course import list_courses, get_course_by_id
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
 
@@ -41,7 +41,7 @@ async def get_all_courses():
 
 
 @router.get("/{course_id}", summary="Retrieve details for a specific course by ID")
-async def get_course_by_id(course_id: str):
+async def get_course(course_id: str):
     """
     Retrieve details of a single course by its ObjectId.
 
@@ -55,7 +55,7 @@ async def get_course_by_id(course_id: str):
         HTTPException:
             - 404: If the course does not exist.
     """
-    course = await get_course(course_id)
+    course = await get_course_by_id(course_id)
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -35,7 +35,7 @@ async def create_course(title: str, description: str):
     result = await courses_collection.insert_one(course)
     return str(result.inserted_id)
 
-async def get_course(course_id: str):
+async def get_course_by_id(course_id: str):
     """
     Retrieve a single course document by its ID.
 
@@ -50,6 +50,20 @@ async def get_course(course_id: str):
     except errors.InvalidId:
         return None
     
+async def get_course_by_title(title: str):
+    """
+    Retrieve a single course document by its title.
+
+    Args:
+        title (str): The title of the course as a string.
+
+    Returns:
+        dict | None: The course document if found, otherwise None.
+    """
+    try:
+        return await courses_collection.find_one({"title": title})
+    except errors.InvalidId:
+        return None
 
 async def update_course(course_id: str, updates: dict):
     """

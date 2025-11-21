@@ -16,15 +16,20 @@ import httpx
 from app.auth.deps import require_role, get_current_user
 from app.services.mux_service import create_direct_upload
 from app.models.no_sql.lesson import create_draft_lesson
+from app.models.no_sql.course import create_course, get_course_by_title
 from app.core.config import settings
 
-router = APIRouter(prefix="/admin")
+router = APIRouter(prefix="/admin", tags=["Admin Actions"])
 MUX_API_BASE = "https://api.mux.com"
 MUX_TOKEN_SECRET = settings.MUX_TOKEN_SECRET
 MUX_TOKEN_ID = settings.MUX_TOKEN_ID
 MUX_WEBHOOK_SECRET = settings.MUX_WEBHOOK_SECRET
 
 auth = (MUX_TOKEN_ID, MUX_TOKEN_SECRET)
+
+# ===============================================================
+# Admin checking endpoint
+# ===============================================================
 
 @router.post("/admin-only")
 async def admin_action(user=Depends(require_role(["admin"]))):
@@ -42,6 +47,30 @@ async def admin_action(user=Depends(require_role(["admin"]))):
         dict: A confirmation message or result from the admin operation.
     """
     return {"detail": f"Admin access granted for user {user.email}"}
+
+# ===============================================================
+# Creating courses endpoint
+# ===============================================================
+
+@router.post("/create_course")
+async def new_course(title: str , description: str):
+    existing = await get_course_by_title(title=title)
+    if existing:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Course already exists")
+    
+    new_course = await create_course(title = title, description = description)
+
+    return {'Status': 'Created', 
+            'course_id': new_course,
+            'title': title,
+            'description': description}
+
+# ===============================================================
+# Uploads endpoints:
+#  -- Upload by session in MUX 
+#  -- Upload from a pre-existing URL 
+#  -- Upload by Import-for-existing-in-MUX
+# ===============================================================
 
 @router.post("/uploads", dependencies=[Depends(require_role(["admin"]))])
 async def create_upload(
@@ -100,10 +129,6 @@ async def create_upload(
             "created_by": str(current_user.id),
         },
     }
-
-# ===============================================================
-# NEW ENDPOINTS - Upload-from-URL and Import-for-existing-in-MUX
-# ===============================================================
 
 @router.post("/uploads/from-url")
 async def create_asset_from_url(
@@ -168,7 +193,6 @@ async def create_asset_from_url(
     }
     }
 
-
 @router.post("/uploads/import-existing")
 async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = Form(...), lesson_title: str = None):
     """
@@ -230,5 +254,3 @@ async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = 
                 "status": data.get("status")
                 }
             }
-
-

@@ -27,7 +27,7 @@ from app.services import user_ops, refresh_token_ops
 from datetime import datetime, timedelta
 from app.auth.deps import get_current_user, require_role
 
-router = APIRouter(prefix='/auth')
+router = APIRouter(prefix='/auth', tags = ['Authentication'])
 
 class RegisterIn(BaseModel):
     """
