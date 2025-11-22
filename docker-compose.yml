@@ -23,6 +23,8 @@ services:
     ports:
       - "27017:27017"
     command: ["mongod", "--bind_ip_all"]
+    volumes:
+      - mongodata:/data/db
 
   app:
     build: .
