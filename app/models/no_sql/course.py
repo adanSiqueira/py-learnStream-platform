@@ -10,7 +10,6 @@ Collections:
 from datetime import datetime
 from bson import ObjectId, errors
 from .database import db
-import uuid
 
 courses_collection = db["courses"]
 
