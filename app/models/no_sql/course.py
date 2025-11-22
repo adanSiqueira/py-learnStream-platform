@@ -26,7 +26,6 @@ async def create_course(title: str, description: str):
         str: The string representation of the inserted course's ObjectId.
     """
     course = {
-        "course_id": str(uuid.uuid4()),
         "title": title,
         "description": description,
         "created_at": datetime.now(),
