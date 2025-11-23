@@ -23,6 +23,8 @@ class Settings(BaseSettings):
         REDIS_URL (str): Connection URI for the Redis instance (used for caching or background tasks).
         JWT_SECRET (str): Secret key used to sign and verify JWT tokens.
         JWT_ALGORITHM (str): Cryptographic algorithm used for JWT signing (default: `"HS256"`).
+        ADMIN_EMAIL (str): Email defined to the first admin user.
+        ADMIN_PASSWORD (str): Secret key used to sign the first admin user.
     """
     DATABASE_URL: str
     MONGO_URL: str
@@ -36,6 +38,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_DAYS: int
     CORS_ALLOWED_ORIGINS: List[str] = ["*"]
+    ADMIN_EMAIL: str
+    ADMIN_PASSWORD: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

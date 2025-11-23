@@ -38,7 +38,7 @@ async def get_by_id(db: AsyncSession, id: int) -> User | None:
     return result.scalars().first()
 
 
-async def create_user(db: AsyncSession, name: str, email: str, password_hash: str) -> User:
+async def create_user(db: AsyncSession, name: str, email: str, password_hash: str, role: str) -> User:
     """
     Create a new user in the database.
 
@@ -47,11 +47,12 @@ async def create_user(db: AsyncSession, name: str, email: str, password_hash: st
         name (str): User's full name.
         email (str): User's email address.
         password_hash (str): Secure hash of the user's password.
+        role(str): User's role in the system ('student' or 'admin').
 
     Returns:
         User: The created user instance.
     """
-    user = User(name=name, email=email, password_hash=password_hash)
+    user = User(name=name, email=email, password_hash=password_hash, role = role)
     db.add(user)
     await db.commit()
     await db.refresh(user)

@@ -20,6 +20,9 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.services.cache_service import init_redis, close_redis
+from app.models.sql.database import AsyncSessionLocal
+from app.services import user_ops
+from app.services.security import hash_password
 
 from app.auth.router import router as auth_router
 from app.admin.router import router as admin_router
@@ -39,12 +42,36 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """
     Defines startup and shutdown lifecycle logic for the FastAPI application.
-    Replaces the deprecated @app.on_event("startup") and @app.on_event("shutdown") decorators.
     """
     # --- Startup ---
     await init_redis()
     logger.info("Redis connection established.")
     
+    # --- Bootstrap admin user ---
+    async with AsyncSessionLocal() as db:
+        admin_email = settings.ADMIN_EMAIL
+        admin_password = settings.ADMIN_PASSWORD
+
+        existing_admin = await user_ops.get_by_email(db, admin_email)
+
+        if not existing_admin:
+            logger.info("No admin found. Creating initial admin...")
+
+            hashed = hash_password(admin_password)
+
+            await user_ops.create_user(
+                db,
+                name="Platform Admin",
+                email=admin_email,
+                password_hash=hashed,
+                role="admin"
+            )
+
+            logger.warning(f"Initial admin created:")
+            logger.warning("CHANGE THE PASSWORD IMMEDIATELY IN PRODUCTION!")
+        else:
+            logger.info("Admin user already exists. Skipping bootstrap.")
+
     yield  # Application runs during this period
 
     # --- Shutdown ---
