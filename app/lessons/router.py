@@ -17,6 +17,7 @@ Dependencies:
 - Enrollment verification uses `user_ops` from the SQL service layer.
 - Video playback data is fetched and enriched using `mux_service`.
 """
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import get_current_user
@@ -27,7 +28,7 @@ from app.models.no_sql.lesson import get_lesson
 
 router = APIRouter(prefix="/lessons", tags=["Lessons"])
 
-@router.get("/{lesson_id}/playback")
+@router.get("/{lesson_id}/playback", summary="Get signed playback URL (requires login)")
 async def get_playback(
     lesson_id: str,
     current_user = Depends(get_current_user),
