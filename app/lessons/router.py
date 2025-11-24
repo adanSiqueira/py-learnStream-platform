@@ -79,8 +79,6 @@ async def get_playback(
     
     # Signed manifest URL via mux_service (with caching)
     signed_url = await create_signed_manifest_url(mux_meta["playback_id"], str(current_user.id))
-    
-    
     response = {
         "playback_id": mux_meta.get("playback_id"),
         "manifest_url": signed_url,

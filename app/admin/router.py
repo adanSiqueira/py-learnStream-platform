@@ -12,11 +12,14 @@ Endpoints:
     - POST /admin/uploads/import-existing
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Form
+from pydantic import BaseModel
 import httpx
 from app.auth.deps import require_role, get_current_user
 from app.services.mux_service import create_direct_upload
 from app.models.no_sql.lesson import create_draft_lesson
+from app.models.no_sql.course import get_course_by_id, update_course
 from app.models.no_sql.course import create_course, get_course_by_title
+from app.models.no_sql.lesson import get_lesson, update_lesson
 from app.core.config import settings
 
 router = APIRouter(prefix="/admin", tags=["Admin Actions"])
@@ -49,8 +52,11 @@ async def admin_action(user=Depends(require_role(["admin"]))):
     return {"detail": f"Admin access granted for user {user.email}"}
 
 # ===============================================================
-# Creating courses endpoint
+# Creating/Updating courses endpoints
 # ===============================================================
+class CourseUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
 
 @router.post("/create_course")
 async def new_course(title: str , description: str):
@@ -65,8 +71,31 @@ async def new_course(title: str , description: str):
             'title': title,
             'description': description}
 
+@router.patch("/{course_id}", summary="Update an existing course")
+async def update_course_endpoint(
+    course_id: str,
+    payload: CourseUpdate,
+    current_user = Depends(get_current_user),
+):
+    # Optional: Only admins can edit courses
+    if current_user.role.value != "admin":
+        raise HTTPException(403, "Only admins can update courses")
+
+    course = await get_course_by_id(course_id)
+    if not course:
+        raise HTTPException(404, "Course not found")
+
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+
+    if not updates:
+        return {"message": "No fields to update"}
+
+    await update_course(course_id, updates)
+
+    return {"message": "Course updated successfully", "updated_fields": updates}
+
 # ===============================================================
-# Uploads endpoints:
+# Creating (Uploads) lessons endpoints:
 #  -- Upload by session in MUX 
 #  -- Upload from a pre-existing URL 
 #  -- Upload by Import-for-existing-in-MUX
@@ -254,3 +283,42 @@ async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = 
                 "status": data.get("status")
                 }
             }
+
+# ===============================================================
+# Updating lesson endpoint
+# ===============================================================
+class LessonUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    mux: dict | None = None
+
+@router.patch("/{lesson_id}", summary="Update an existing lesson (admin only)")
+async def update_lesson_endpoint(
+    lesson_id: str,
+    payload: LessonUpdate,
+    current_user = Depends(get_current_user)
+):
+    if current_user.role.value != "admin":
+        raise HTTPException(403, "Only admins can edit lessons")
+
+    lesson = await get_lesson(lesson_id)
+    if not lesson:
+        raise HTTPException(404, "Lesson not found")
+
+    updates = {}
+
+    if payload.title is not None:
+        updates["title"] = payload.title
+
+    if payload.description is not None:
+        updates["description"] = payload.description
+
+    if payload.mux is not None:
+        updates["mux"] = {**lesson.get("mux", {}), **payload.mux}
+
+    if not updates:
+        return {"message": "No fields to update"}
+
+    await update_lesson(lesson_id, updates)
+
+    return {"message": "Lesson updated successfully", "updated_fields": updates}

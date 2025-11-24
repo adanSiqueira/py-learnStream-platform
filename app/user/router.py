@@ -22,8 +22,9 @@ from pydantic import BaseModel
 from app.models.no_sql.course import get_course_by_id
 from app.auth.deps import get_current_user
 from app.models.sql.database import get_db as get_sql_db
-from app.services.user_ops import get_enrollments_for_user
+from app.services.user_ops import get_enrollments_for_user, update_user
 from datetime import datetime
+from app.services.security import hash_password
 
 router = APIRouter(prefix="/user", tags = ["User"])
 
@@ -33,6 +34,38 @@ class EnrollmentOut(BaseModel):
     course_title: str | None
     course_description: str | None
     enrolled_at: datetime
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    password: str | None = None
+
+@router.patch("/update", summary="Update current user profile")
+async def update_my_user(
+    payload: UserUpdate,
+    current_user = Depends(get_current_user),
+    sql_db: AsyncSession = Depends(get_sql_db)
+):
+    updates = {}
+
+    if payload.name is not None:
+        updates["name"] = payload.name
+
+    if payload.email is not None:
+        updates["email"] = payload.email
+
+    if payload.password is not None:
+        updates["password_hash"] = hash_password(payload.password)
+
+    if not updates:
+        return {"message": "Nothing to update"}
+
+    updated = await update_user(sql_db, current_user.id, updates)
+
+    return {
+        "message": "User updated successfully",
+        "updated_fields": list(updates.keys())
+    }
 
 @router.get("/enrollments", response_model = list[EnrollmentOut], summary="List all courses the user is enrolled in")
 async def get_my_enrollments(

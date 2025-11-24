@@ -18,7 +18,6 @@ Architecture notes:
 - Enrollment endpoint ensures idempotency: users cannot enroll twice.
 """
 
-from fastapi import APIRouter, HTTPException, status
 from app.models.no_sql.course import list_courses, get_course_by_id
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +47,6 @@ async def get_all_courses():
         }
         for course in courses
     ]
-
 
 @router.get("/{course_id}", summary="Retrieve details for a specific course by ID")
 async def get_course(course_id: str):

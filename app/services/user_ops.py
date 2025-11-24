@@ -37,7 +37,6 @@ async def get_by_id(db: AsyncSession, id: int) -> User | None:
     result = await db.execute(select(User).where(User.id == id))
     return result.scalars().first()
 
-
 async def create_user(db: AsyncSession, name: str, email: str, password_hash: str, role: str) -> User:
     """
     Create a new user in the database.
@@ -54,6 +53,20 @@ async def create_user(db: AsyncSession, name: str, email: str, password_hash: st
     """
     user = User(name=name, email=email, password_hash=password_hash, role = role)
     db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+async def update_user(db: AsyncSession, user_id: int, updates: dict):
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+
+    for k, v in updates.items():
+        setattr(user, k, v)
+
     await db.commit()
     await db.refresh(user)
     return user
