@@ -19,6 +19,7 @@ Architecture notes:
 """
 
 from app.models.no_sql.course import list_courses, get_course_by_id
+from app.models.no_sql.lesson import list_lessons_by_course
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import get_current_user
@@ -77,6 +78,31 @@ async def get_course(course_id: str):
         "created_at": course.get("created_at"),
         "updated_at": course.get("updated_at"),
     }
+
+@router.get("/{course_id}/lessons", summary = "Get all lessons of a course")
+async def get_all_lessons(course_id: str):
+    """
+    Retrieve all lessons of a single course by its ObjectId.
+
+    Args:
+        course_id (str): The ObjectId of the course in MongoDB.
+
+    Returns:
+        list: All the lessons that the specified course contains.
+
+    Raises:
+        HTTPException:
+            - 404: If the course does not exist.
+    """
+    course = await get_course_by_id(course_id)
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Course not found."
+        )
+    
+    lessons = await list_lessons_by_course (course_id)
+    return lessons
 
 @router.post("/{course_id}/enroll", summary="Enroll the user into a course")
 async def enroll_in_course(

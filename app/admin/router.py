@@ -71,7 +71,7 @@ async def new_course(title: str , description: str):
             'title': title,
             'description': description}
 
-@router.patch("/{course_id}", summary="Update an existing course")
+@router.patch("/update_course/{course_id}", summary="Update an existing course")
 async def update_course_endpoint(
     course_id: str,
     payload: CourseUpdate,
@@ -289,10 +289,11 @@ async def import_existing_mux_asset(asset_id: str = Form(...), course_id: str = 
 # ===============================================================
 class LessonUpdate(BaseModel):
     title: str | None = None
+    course_id: str | None = None
     description: str | None = None
     mux: dict | None = None
 
-@router.patch("/{lesson_id}", summary="Update an existing lesson (admin only)")
+@router.patch("/update_lesson/{lesson_id}", summary="Update an existing lesson (admin only)")
 async def update_lesson_endpoint(
     lesson_id: str,
     payload: LessonUpdate,
@@ -309,6 +310,9 @@ async def update_lesson_endpoint(
 
     if payload.title is not None:
         updates["title"] = payload.title
+
+    if payload.course_id is not None:
+        updates["course_id"] = payload.course_id
 
     if payload.description is not None:
         updates["description"] = payload.description

@@ -30,8 +30,11 @@ async def create_lesson(course_id: str, title: str, description: str, mux: dict)
     Returns:
         str: The string representation of the inserted lesson's ObjectId.
     """
+    if not ObjectId.is_valid(course_id):
+        raise ValueError("Invalid course_id")
+    
     lesson = {
-        "course_id": ObjectId(course_id) if ObjectId.is_valid(course_id) else course_id,
+        "course_id": ObjectId(course_id),
         "title": title,
         "description": description,
         "created_at": datetime.now(),
@@ -51,6 +54,17 @@ async def create_lesson(course_id: str, title: str, description: str, mux: dict)
         }
     result = await lessons_collection.insert_one(lesson)
     return str(result.inserted_id)
+
+def serialize_lesson(lesson: dict) -> dict:
+    return {
+        "id": str(lesson["_id"]),
+        "course_id": str(lesson["course_id"]),
+        "title": lesson.get("title"),
+        "description": lesson.get("description"),
+        "mux": lesson.get("mux", {}),
+        "created_at": lesson.get("created_at"),
+        "updated_at": lesson.get("updated_at"),
+    }
 
 async def get_lesson(lesson_id: str) -> dict | None:
     """
@@ -77,8 +91,10 @@ async def list_lessons_by_course(course_id: str) -> list[dict]:
     Returns:
         list[dict]: A list of lesson documents related to the given course.
     """
-    cursor = lessons_collection.find({"course_id": ObjectId(course_id)})
-    return [lesson async for lesson in cursor]
+    oid = ObjectId(course_id)
+    cursor = lessons_collection.find({"course_id": oid})
+    lessons = [lesson async for lesson in cursor]
+    return [serialize_lesson(lesson) for lesson in lessons]
 
 async def update_lesson(lesson_id: str, updates: dict) -> None:
     """
