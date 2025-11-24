@@ -29,6 +29,7 @@ from app.admin.router import router as admin_router
 from app.lessons.router import router as lessons_router
 from app.mux_webhooks.router import router as mux_webhooks_router
 from app.courses.router import router as courses_router
+from app.user.router import router as user_router
 
 # Logging Configuration
 logging.basicConfig(
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(lessons_router)
     app.include_router(mux_webhooks_router)
     app.include_router(courses_router)
+    app.include_router(user_router)
 
     # Health Check
     @app.get("/health", tags=["System"])

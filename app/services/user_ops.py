@@ -78,3 +78,12 @@ async def is_enrolled (db: AsyncSession, user_id: int, course_id:str) -> bool:
     )
     enrollment = result.scalars().first()
     return enrollment is not None
+
+async def get_enrollments_for_user(db: AsyncSession, user_id: int):
+    """
+    Get all courses that the user is enrolled to.
+    """
+    result = await db.execute(
+        select(Enrollment).where(Enrollment.user_id == user_id)
+    )
+    return result.scalars().all()

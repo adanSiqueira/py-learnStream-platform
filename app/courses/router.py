@@ -1,17 +1,21 @@
 """
-This module defines the routing layer for course-related endpoints.
+Routing layer for Course operations.
 
-It exposes routes under the /courses prefix, enabling clients to:
-  - Retrieve a list of all available courses.
-  - Fetch details for a specific course by ID.
+This module exposes endpoints under the `/courses` prefix and provides
+features related to course discovery and enrollment.
 
-Core responsibilities:
-- Interact with MongoDB (NoSQL) through the `course` model.
-- Return clean, consistent JSON responses for front-end consumption.
-- Provide 404 responses when requested courses do not exist.
+Key responsibilities include:
+- Listing all available courses stored in MongoDB.
+- Retrieving detailed information for a specific course by ID.
+- Handling user enrollment into a course (SQL-based).
 
-Dependencies:
-- MongoDB connection and CRUD functions from `app.models.no_sql.course`.
+Architecture notes:
+- Course records live in **MongoDB**.
+- Enrollment records live in **PostgreSQL/MySQL** via SQLAlchemy.
+- Endpoints enforce authentication where required and return consistent,
+  front-end-friendly JSON payloads.
+- 404 errors are returned when a course does not exist.
+- Enrollment endpoint ensures idempotency: users cannot enroll twice.
 """
 
 from fastapi import APIRouter, HTTPException, status
@@ -76,12 +80,39 @@ async def get_course(course_id: str):
         "updated_at": course.get("updated_at"),
     }
 
-@router.post("/{course_id}/enroll")
+@router.post("/{course_id}/enroll", summary="Enroll the user into a course")
 async def enroll_in_course(
     course_id: str,
     current_user = Depends(get_current_user),
     sql_db: AsyncSession = Depends(get_sql_db)
 ):
+    """
+        Enroll the authenticated user into a course.
+
+        Validations:
+        - Ensures the course exists in MongoDB.
+        - Prevents duplicate enrollments by checking whether the user
+        is already enrolled in the given course.
+        - Creates a new enrollment record in the SQL database.
+
+        Args:
+            course_id (str): The ID of the course stored in MongoDB.
+            current_user: The authenticated user object injected by FastAPI.
+            sql_db (AsyncSession): SQLAlchemy async session.
+
+        Returns:
+            dict: A JSON object containing:
+                - message (str): Confirmation message.
+                - course_id (str): The course the user enrolled in.
+                - user_id (int): The ID of the enrolled user.
+                - enrollment_id (int): Newly created enrollment record ID.
+
+        Raises:
+            HTTPException:
+                - 404: If the course does not exist.
+                - 400: If the user is already enrolled in the course.
+                - 409: If an enrollment conflict occurs during creation.
+    """
 
     course = await get_course_by_id(course_id)
     if not course:
