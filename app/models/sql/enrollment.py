@@ -11,9 +11,9 @@ Relations:
 - Courses are identified by their MongoDB '_id' (stored as 'course_id' string).
 """
 from .database import Base
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, String, UniqueConstraint
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class Enrollment (Base):
     """
@@ -37,7 +37,11 @@ class Enrollment (Base):
     id = Column(Integer, primary_key = True, index = True )
     user_id = Column (Integer, ForeignKey('users.id'), index = True, nullable=False)
     course_id = Column(String, index=True, nullable=False)  # store Mongo course_id here
-    enrolled_at = Column(DateTime, default= datetime.now())
-    expires_at = Column(DateTime, default= datetime.now())
+    enrolled_at = Column(DateTime, default= datetime.now(), nullable = False)
+    expires_at = Column(DateTime, default= datetime.now() + timedelta(days = 365))
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'course_id', name='uq_user_course'),
+    )
 
     user = relationship("User", back_populates="enrollments")
