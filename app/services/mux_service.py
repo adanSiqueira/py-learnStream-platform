@@ -46,14 +46,20 @@ async def get_asset(asset_id: str) -> Dict:
     """
     Fetch asset details from Mux.
     """
-    async with httpx.AsyncClient(auth=auth, timeout=30) as client:
-        try:    
-            resp = await client.get(f"{MUX_API_BASE}/video/v1/assets/{asset_id}")
-            resp.raise_for_status()
-            return resp.json()["data"]
-        except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch Mux asset {asset_id}: {e}")
-            raise
+    # async with httpx.AsyncClient(auth=auth, timeout=30) as client:
+    #     try:    
+    #         resp = await client.get(f"{MUX_API_BASE}/video/v1/assets/{asset_id}")
+    #         resp.raise_for_status()
+    #         return resp.json()["data"]
+    #     except httpx.HTTPError as e:
+    #         logger.error(f"Failed to fetch Mux asset {asset_id}: {e}")
+    #         raise
+    url = f"https://api.mux.com/video/v1/assets/{asset_id}"
+
+    async with httpx.AsyncClient(auth=(MUX_TOKEN_ID, MUX_TOKEN_SECRET)) as client:
+        res = await client.get(url)
+        res.raise_for_status()
+        return res.json()["data"]
 
 async def create_signed_manifest_url(playback_id: str, user_id: str) -> str:
     """

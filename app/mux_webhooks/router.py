@@ -1,69 +1,87 @@
 """
-This module handles incoming webhook events from the Mux Video API.
-
-Mux sends notifications (webhooks) for important video lifecycle events such as:
-    - video.asset.ready     → asset successfully processed
-    - video.asset.errored   → processing failed
-    - video.upload.created  → upload initialized
-
-These webhooks allow the application to automatically update its MongoDB
-lesson records without manual admin intervention, ensuring that video metadata
-(e.g. asset_id, playback_id, duration, and status) is always in sync with Mux.
-
-Security:
-    - HMAC-SHA256 signature verification ensures that only genuine requests
-      from Mux are accepted.
-    - Signature is validated using the shared secret `MUX_WEBHOOK_SECRET`.
+Mux webhook receiver router.
 """
 from fastapi import APIRouter, Request, Header, HTTPException, status
 from fastapi.responses import JSONResponse
-from app.models.no_sql.lesson import lessons_collection
-from app.core.config import settings 
+from app.core.config import settings
 import logging
-from app.services.mux_service import verify_mux_signature, handle_mux_webhook
+from app.services.mux_service import verify_mux_signature
+from app.mux_webhooks.mux_handlers import MUX_EVENT_HANDLERS
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 logger = logging.getLogger(__name__)
 
-# Secret from .env
 MUX_WEBHOOK_SECRET = settings.MUX_WEBHOOK_SECRET
 
-# Webhook endpoint
 @router.post("/mux")
-async def mux_webhook(request: Request):
+async def mux_webhook(request: Request, mux_signature: str | None = Header(None, alias="mux-signature")):
     """
-    Receive webhook events from Mux and update the lessons collection accordingly.
+    Receive webhook events from Mux and dispatch to handlers.
+    Robust: initializes event_type/event_id so logging/exception handlers won't crash.
+    Accepts mux-signature header alias and verifies signature using verify_mux_signature.
     """
+    # Read raw body first (used for signature verification)
     raw_body = await request.body()
-    headers = dict(request.headers)
 
-    print("─── Incoming Mux Webhook ─────────────────────")
-    print("Headers:", headers)
-    print("RAW BODY (first 500 bytes):", raw_body[:500])
-    print("MUX_WEBHOOK_SECRET (last 4 chars):", MUX_WEBHOOK_SECRET[-4:])
-    print("──────────────────────────────────────────────")
+    # Initialize for safe logging even when parsing fails
+    event_type: str | None = None
+    event_id: str | None = None
 
-    signature_header = (
-        headers.get("mux-signature")
-        or headers.get("Mux-Signature")
-        or headers.get("x-mux-signature")
-    )
+    # Debug logs (keeps raw body truncated)
+    try:
+        headers = dict(request.headers)
+    except Exception:
+        headers = {}
+    logger.info("─── Incoming Mux Webhook ─────────────────────")
+    logger.info("Headers: %s", headers)
+    logger.info("RAW BODY (first 500 bytes): %s", raw_body[:500])
+
+    # Accept different header spellings (ngrok / proxies may lowercase)
+    signature_header = mux_signature or headers.get("x-mux-signature") or headers.get("Mux-Signature")
 
     if not signature_header:
+        logger.warning("Missing Mux signature header. Headers present: %s", list(headers.keys()))
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing Mux signature header.")
 
-    # Validate signature
-    if not verify_mux_signature(raw_body, signature_header):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Mux webhook signature.")
-
-    # Now safe to parse JSON
-    event = await request.json()
-
+    # Verify signature
     try:
-        return JSONResponse(
-            content=await handle_mux_webhook(event, lessons_collection),
-            status_code=200
-        )
+        if not verify_mux_signature(raw_body, signature_header):
+            logger.error("Invalid Mux webhook signature.")
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Mux webhook signature.")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error processing Mux webhook: {e}")
-        raise HTTPException(500, "Error processing webhook.")
+        logger.exception("Exception while verifying Mux signature: %s", e)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Signature verification error.")
+
+    # Safe JSON parsing and handler dispatch
+    try:
+        event = await request.json()
+        event_type = event.get("type")
+        event_id = event.get("id")
+        logger.info("Handling event %s (id=%s)", event_type, event_id)
+
+        # Resolve handler (fallback to)
+        handler = MUX_EVENT_HANDLERS.get(event_type)
+
+        if not handler:
+            logger.warning("No handler for event type: %s", event_type)
+            return JSONResponse( content={"message": f"Ignored unsupported event type: {event_type}"}, status_code=status.HTTP_200_OK)
+
+        # Call the handler. Handlers should be async and accept the event dict.
+        response = await handler(event)
+
+        # Optionally: log success
+        logger.info("Handled event %s (id=%s) -> %s", event_type, event_id, response)
+
+        return JSONResponse(content=response, status_code=status.HTTP_200_OK)
+
+    except HTTPException:
+        # Re-raise to allow FastAPI to handle HTTPExceptions
+        raise
+    except Exception as e:
+        logger.exception(
+            "Error processing webhook. event_type=%s event_id=%s error=%s raw_body_head=%s",
+            event_type, event_id, e, (raw_body[:300] if isinstance(raw_body, (bytes, bytearray)) else str(raw_body)) 
+        )
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Error processing webhook.")
