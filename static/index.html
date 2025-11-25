@@ -312,10 +312,32 @@
             color: var(--secondary);
             font-weight: 600;
         }
+        .docs-icon {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            z-index: 10;
+        }
+
+        .docs-icon:hover {
+            transform: scale(1.15);
+        }
     </style>
 </head>
 <body>
     <header>
+        <a href="/docs" class="docs-icon" title="Open API Documentation">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:2px;">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 19V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" 
+                        stroke="#FFD43B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M13 3v4h4" stroke="#FFD43B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span style="font-size:0.75rem; color:#FFD43B; font-weight:600;">Docs</span>
+            </div>
+        </a>
         <h1>py-LearnStream Platform</h1>
         <p class="subtitle">A production-grade backend API for online learning and secure video delivery</p>
         <div class="badges">
