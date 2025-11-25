@@ -157,43 +157,60 @@ async def handle_mux_webhook(event: dict, lessons_collection: AsyncIOMotorCollec
 # Signature verification helper
 def verify_mux_signature(raw_body: bytes, signature_header: str | None) -> bool:
     """
-    Validate the Mux webhook signature using HMAC-SHA256.
+    Verify Mux webhook signature.
 
-    Args:
-        raw_body (bytes): Raw request body.
-        signature_header (str | None): Value of the 'x-mux-signature' header.
-
-    Returns:
-        bool: True if valid, False otherwise.
+    Correct Mux algorithm:
+        signed_message = f"{timestamp}.{raw_body}"
+        signature = HMAC_SHA256(secret, signed_message)
     """
-    if not MUX_WEBHOOK_SECRET:
-        logger.warning("MUX_WEBHOOK_SECRET not set; skipping signature verification (dev mode).")
-        return True  # dev-only
+    logger.info("─── Verifying Mux Signature ─────────────────────")
 
     if not signature_header:
-        logger.warning("Missing x-mux-signature header.")
+        logger.error("Missing signature header.")
         return False
 
-    # Mux may send the header as "t=<timestamp>, v1=<hash>"
-    # Only use the v1 portion
-    try:
-        parts = dict(p.split("=", 1) for p in signature_header.split(","))
-        signature_hex = parts.get("v1")
-    except Exception:
-        logger.exception("Invalid signature header format.")
+    # Example header:
+    # t=1700000000,v1=abcd1234...
+    parts = signature_header.split(",")
+    timestamp = None
+    signatures = []
+
+    for part in parts:
+        part = part.strip()
+        if part.startswith("t="):
+            timestamp = part.split("=", 1)[1]
+        elif part.startswith("v1="):
+            signatures.append(part.split("=", 1)[1])
+
+    if not timestamp:
+        logger.error("Missing timestamp in signature header.")
         return False
 
-    if not signature_hex:
-        logger.warning("Missing v1 signature value.")
+    if not signatures:
+        logger.error("No v1 signatures found.")
         return False
 
-    computed = hmac.new(
+    # Build signed message EXACTLY as Mux expects
+    signed_message = f"{timestamp}.".encode() + raw_body
+
+    # Compute expected signature
+    expected = hmac.new(
         MUX_WEBHOOK_SECRET.encode(),
-        raw_body,
+        signed_message,
         hashlib.sha256
     ).hexdigest()
 
-    valid = hmac.compare_digest(computed, signature_hex)
-    if not valid:
-        logger.error("Invalid Mux webhook signature.")
-    return valid
+    # Debug logs
+    logger.info(f"Header timestamp: {timestamp}")
+    logger.info(f"Incoming signatures: {signatures}")
+    logger.info(f"Computed HMAC: {expected}")
+    logger.info(f"Signed message (first 300 bytes): {signed_message[:300]}")
+
+    # Compare against all v1 signatures
+    for sig in signatures:
+        if hmac.compare_digest(expected, sig):
+            logger.info("Mux webhook signature OK.")
+            return True
+
+    logger.error("Computed signature did not match any provided signature.")
+    return False
