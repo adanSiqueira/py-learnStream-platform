@@ -161,10 +161,9 @@ async def create_upload(
 
 @router.post("/uploads/from-url")
 async def create_asset_from_url(
-    video_url: str = Form(...),
-    title: str = Form("Imported video"),
-    description: str = Form("Imported via URL")
-):
+    video_url: str,
+    title: str,
+    description: str):
     """
     Create a Mux asset directly from an external URL and register it as a draft lesson.
 
@@ -189,7 +188,7 @@ async def create_asset_from_url(
         response = await client.post(
             "https://api.mux.com/video/v1/assets",
             json={
-                "input": video_url,
+                "inputs": [{'url' : str(video_url), 'name' : str(title)}],
                 "playback_policy": ["public"],
                 "encoding_tier": "baseline"
             }

@@ -5,6 +5,13 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+def extract_title(data: dict):
+    return (
+        data.get("new_asset_settings", {}).get("meta", {}).get("title")
+        or data.get("metadata", {}).get("title")
+        or next((t.get("name") for t in data.get("tracks", []) if t.get("name")), None)
+    )
+
 # -------------------------------------------------------------
 # video.asset.ready
 # -------------------------------------------------------------
@@ -14,9 +21,15 @@ async def handle_asset_ready(event: dict):
 
     asset_id = data.get("id")
     if not asset_id:
-        return {"error": "missing asset id"}
+        print ({"error": "missing asset id"})
 
-    # fetch asset details from Mux (playback_ids, duration, tracks)
+    title = extract_title(data)
+    if not title:
+        title = "No title found"
+
+    #----------------------------------------------------------------------#
+    #---fetch asset details from Mux (playback_ids, duration, tracks)------#
+    #----------------------------------------------------------------------#
     asset_details = await get_asset(asset_id)
 
     playback_id = (
@@ -32,9 +45,12 @@ async def handle_asset_ready(event: dict):
         "Asset ready — asset_id=%s playback=%s duration=%s",
         asset_id, playback_id, duration
     )
+    #----------------------------------------------------------------------#
+    #----------------------------------------------------------------------#
 
     update_doc = {
         "$set": {
+            "title": title,
             # canonical
             "mux.asset_id": asset_id,
             "mux.playback_id": playback_id,
@@ -55,7 +71,15 @@ async def handle_asset_ready(event: dict):
 
     # try matching by upload_id first
     upload_id = data.get("upload_id") or asset_details.get("upload_id")
-    query = {"mux.upload_id": upload_id} if upload_id else {"mux.asset_id": asset_id}
+    query = {
+    "$or": [
+        {"mux.upload_id": upload_id},
+        {"mux.asset_id": asset_id},
+        {"video.upload_id": upload_id},
+        {"video.asset_id": asset_id}
+        ]
+    }
+
 
     result = await lessons_collection.update_one(query, update_doc, upsert=False)
 
@@ -81,7 +105,10 @@ async def handle_upload_created(event: dict):
     if not upload_id:
         return {"error": "missing upload id"}
 
+    title = extract_title(data) or "Untitled Video"
+
     doc = {
+        "title": title,
         "mux": {
             "upload_id": upload_id,
             "status": "upload_created",
@@ -100,12 +127,7 @@ async def handle_upload_created(event: dict):
         upsert=True
     )
 
-    return {
-        "message": "Upload placeholder created.",
-        "upserted_id": str(result.upserted_id) if result.upserted_id else None,
-        "matched": result.matched_count,
-        "modified": result.modified_count
-    }
+    return {"message": "Upload placeholder created."}
 
 
 # -------------------------------------------------------------
@@ -118,19 +140,55 @@ async def handle_asset_created(event: dict):
     upload_id = data.get("upload_id")
 
     if not asset_id:
-        return {"error": "missing asset id"}
+        print ({"error": "missing asset id"})
+    
+    title = extract_title(data)
+    if not title:
+        title = "No title found"
+    
+    #----------------------------------------------------------------------#
+    #---fetch asset details from Mux (playback_ids, duration, tracks)------#
+    #----------------------------------------------------------------------#
+    asset_details = await get_asset(asset_id)
 
-    query = {"mux.upload_id": upload_id} if upload_id else {"mux.asset_id": asset_id}
+    playback_id = (
+        asset_details.get("playback_ids", [{}])[0].get("id")
+        if asset_details.get("playback_ids")
+        else None
+    )
+
+    duration = asset_details.get("duration")
+    tracks = asset_details.get("tracks", [])
+
+    logger.info(
+        "Asset ready — asset_id=%s playback=%s duration=%s",
+        asset_id, playback_id, duration
+    )
+
+    #----------------------------------------------------------------------#
+    #----------------------------------------------------------------------#
+
+    query = {
+    "$or": [
+        {"mux.upload_id": upload_id},
+        {"mux.asset_id": asset_id},
+        {"video.upload_id": upload_id},   # extra segurança
+        {"video.asset_id": asset_id}
+        ]
+    }
+
 
     update_doc = {
-        "$set": {
-            "mux.asset_id": asset_id,
-            "video.asset_id": asset_id,
-            "mux.status": "asset_created",
-            "video.status": "asset_created",
-            "updated_at": datetime.now()
+    "$set": {
+        "title": title,
+        "mux.asset_id": asset_id,
+        "video.asset_id": asset_id,
+        "mux.status": "asset_created",
+        "video.status": "asset_created",
+        "updated_at": datetime.now()
         }
     }
+
 
     result = await lessons_collection.update_one(query, update_doc)
 
