@@ -1,21 +1,3 @@
-"""
-Routing layer for User-specific operations.
-
-This module groups endpoints that operate on data tied to the currently
-authenticated user. All routes are exposed under the `/user` prefix.
-
-Current capabilities:
-- Retrieve a list of all course enrollments for the logged-in user.
-  This combines SQL (enrollment records) with MongoDB (course metadata),
-  returning a unified, front-end-ready response.
-
-Design rationale:
-- User-centric endpoints are grouped separately from course routers
-  because `/courses/enrollments` could be misinterpreted as "all users
-  enrolled in a course". Instead, `/user/enrollments` clearly expresses
-  ownership: *the enrollments belonging to the authenticated user*.
-"""
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -29,6 +11,11 @@ from app.services.security import hash_password
 router = APIRouter(prefix="/user", tags = ["User"])
 
 class EnrollmentOut(BaseModel):
+    """
+    Response model representing a user's enrollment entry with combined SQL + NoSQL data.
+
+    Returned by: `GET /user/enrollments`
+    """
     enrollment_id: int
     course_id: str
     course_title: str | None
@@ -36,6 +23,12 @@ class EnrollmentOut(BaseModel):
     enrolled_at: datetime
 
 class UserUpdate(BaseModel):
+    """
+    Allowed fields for user profile updates.
+
+    None fields are ignored, enabling partial updates without affecting
+    unchanged values in the user's record.
+    """
     name: str | None = None
     email: str | None = None
     password: str | None = None
@@ -46,6 +39,25 @@ async def update_my_user(
     current_user = Depends(get_current_user),
     sql_db: AsyncSession = Depends(get_sql_db)
 ):
+    """
+    Update the profile information of the currently authenticated user.
+
+    This endpoint performs partial updates — only the provided fields
+    (non-None) are applied. If a new password is sent, it is securely
+    re-hashed before storage.
+
+    Args:
+        payload (UserUpdate): Possible fields to update (`name`, `email`, `password`).
+        current_user (User): Injected authenticated user performing the update.
+        sql_db (AsyncSession): SQLAlchemy session for DB operations.
+
+    Returns:
+        dict: Success message + which fields were updated.
+              Returns `"Nothing to update"` if no fields were supplied.
+
+    Raises:
+        None explicitly here — update validations may occur downstream.
+    """
     updates = {}
 
     if payload.name is not None:
@@ -67,11 +79,42 @@ async def update_my_user(
         "updated_fields": list(updates.keys())
     }
 
-@router.get("/enrollments", response_model = list[EnrollmentOut], summary="List all courses the user is enrolled in")
+@router.get("/enrollments", response_model=list[EnrollmentOut], summary="List all courses the user is enrolled in")
 async def get_my_enrollments(
     current_user = Depends(get_current_user),
     sql_db: AsyncSession = Depends(get_sql_db)
 ):
+    """
+    Retrieve all course enrollments belonging to the authenticated user.
+
+    This endpoint joins **SQL enrollment records** with **MongoDB course metadata**
+    to produce a complete and structured response, suitable for direct
+    front-end consumption.
+
+    Workflow:
+        1. Fetch all enrollment rows from SQL.
+        2. For each, fetch course details from MongoDB.
+        3. Merge results into `EnrollmentOut` objects.
+
+    Args:
+        current_user (User): Currently authenticated user (dependency).
+        sql_db (AsyncSession): Database session to query user enrollments.
+
+    Returns:
+        list[EnrollmentOut]: Array of all enrollments belonging to the user.
+                             Courses missing in MongoDB are skipped.
+
+    Example response:
+        [
+            {
+                "enrollment_id": 12,
+                "course_id": "abc123",
+                "course_title": "Python for APIs",
+                "course_description": "Learn FastAPI step-by-step",
+                "enrolled_at": "2025-02-10T14:28:51Z"
+            }
+        ]
+    """
     enrollments = await get_enrollments_for_user(sql_db, current_user.id)
 
     result = []
@@ -79,7 +122,7 @@ async def get_my_enrollments(
         course = await get_course_by_id(enr.course_id)
 
         if not course:
-            continue  # course deleted?
+            continue  
 
         result.append({
             "enrollment_id": enr.id,
