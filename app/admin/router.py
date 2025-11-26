@@ -60,6 +60,21 @@ class CourseUpdate(BaseModel):
 
 @router.post("/create_course")
 async def new_course(title: str , description: str):
+    """
+    Create a new course if the title does not already exist.
+
+    Behavior:
+        - Checks whether a course with the same title already exists.
+        - If it does, returns HTTP 400.
+        - If not, creates a new course document and returns metadata.
+
+    Args:
+        title (str): The course name.
+        description (str): A short summary of what the course contains.
+
+    Returns:
+        dict: Success message, created course ID and its initial fields.
+    """
     existing = await get_course_by_title(title=title)
     if existing:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Course already exists")
@@ -298,6 +313,20 @@ async def update_lesson_endpoint(
     payload: LessonUpdate,
     current_user = Depends(get_current_user)
 ):
+    """
+    Update details about a lesson (title, course, description or mux fields).
+
+    This endpoint is restricted to admin users only. It retrieves the lesson,
+    applies only the modified fields from the payload, and saves the update.
+
+    Args:
+        lesson_id (str): Target lesson document ID.
+        payload (LessonUpdate): Fields to update.
+        current_user (User): Injected authenticated admin user.
+
+    Returns:
+        dict: Status of the update + which fields were applied.
+    """
     if current_user.role.value != "admin":
         raise HTTPException(403, "Only admins can edit lessons")
 
