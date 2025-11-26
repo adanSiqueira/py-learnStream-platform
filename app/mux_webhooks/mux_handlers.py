@@ -1,3 +1,18 @@
+"""
+Mux Webhook Handlers — Receives, interprets and persists Mux video lifecycle events.
+
+This module processes webhook events originating from Mux, updating the `lessons`
+MongoDB collection with the state of an asset or its upload. It keeps lesson records
+synchronized with the full lifecycle:
+
+    upload_created ➝ asset_created ➝ asset_ready ➝ playback available
+    upload_cancelled / upload_errored / asset_errored / asset_deleted
+
+Each handler receives a parsed JSON `event` payload and applies the appropriate
+database update. Playback IDs, duration, metadata and status flags are persisted
+for consumption by the application’s frontend and backend video services.
+"""
+
 from app.models.no_sql.lesson import lessons_collection
 from app.services.mux_service import get_asset
 import logging
@@ -6,6 +21,24 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 def extract_title(data: dict):
+    """
+    Extracts the most likely title from an asset or upload payload.
+
+    Priority order:
+        1. Direct upload metadata: data["new_asset_settings"]["meta"]["title"]
+        2. Asset metadata:         data["metadata"]["title"]
+        3. Track names:            first track with a non-null `name`
+
+    Parameters
+    ----------
+    data : dict
+        Mux event `data` field.
+
+    Returns
+    -------
+    str | None
+        A resolved title string if available, otherwise None.
+    """
     return (
         data.get("new_asset_settings", {}).get("meta", {}).get("title")
         or data.get("metadata", {}).get("title")
@@ -16,6 +49,25 @@ def extract_title(data: dict):
 # video.asset.ready
 # -------------------------------------------------------------
 async def handle_asset_ready(event: dict):
+    """
+    Final stage in the Mux pipeline — asset is fully processed and playable.
+
+    Actions performed:
+        • Fetch remote asset details via `get_asset(asset_id)`  
+        • Resolve playback ID, duration and tracks
+        • Update the associated lesson entry using upload_id or asset_id
+        • Write canonical mux.* fields used by the platform
+
+    Parameters
+    ----------
+    event : dict
+        Webhook payload containing `data.id`, `data.upload_id`, metadata, etc.
+
+    Returns
+    -------
+    dict
+        Standard API response: update summary + match count.
+    """
     logger.info("🔥 ENTERED handle_asset_ready()")
     data = event.get("data", {}) or {}
 
@@ -27,9 +79,6 @@ async def handle_asset_ready(event: dict):
     if not title:
         title = "No title found"
 
-    #----------------------------------------------------------------------#
-    #---fetch asset details from Mux (playback_ids, duration, tracks)------#
-    #----------------------------------------------------------------------#
     asset_details = await get_asset(asset_id)
 
     playback_id = (
@@ -45,31 +94,19 @@ async def handle_asset_ready(event: dict):
         "Asset ready — asset_id=%s playback=%s duration=%s",
         asset_id, playback_id, duration
     )
-    #----------------------------------------------------------------------#
-    #----------------------------------------------------------------------#
 
     update_doc = {
         "$set": {
             "title": title,
-            # canonical
             "mux.asset_id": asset_id,
             "mux.playback_id": playback_id,
             "mux.duration": duration,
             "mux.status": "ready",
             "mux.tracks": tracks,
             "mux.updated_at": datetime.now(),
-
-            # backwards compatibility
-            "video.asset_id": asset_id,
-            "video.playback_id": playback_id,
-            "video.duration": duration,
-            "video.status": "ready",
-            "video.tracks": tracks,
-            "video.updated_at": datetime.now(),
         }
     }
 
-    # try matching by upload_id first
     upload_id = data.get("upload_id") or asset_details.get("upload_id")
     query = {
     "$or": [
@@ -94,11 +131,27 @@ async def handle_asset_ready(event: dict):
         "matched": getattr(result, "matched_count", None),
     }
 
-
 # -------------------------------------------------------------
 # video.upload.created
 # -------------------------------------------------------------
 async def handle_upload_created(event: dict):
+    """
+    Triggered when a direct upload URL is generated on Mux.
+
+    Creates a placeholder lesson record *if none exists* so that subsequent
+    asset events may populate it. This allows upload → processed asset
+    synchronization without requiring manual linking.
+
+    Parameters
+    ----------
+    event : dict
+        Webhook JSON with `data.id/upload_id`.
+
+    Returns
+    -------
+    dict
+        Status message indicating insert or noop.
+    """
     data = event.get("data", {}) or {}
 
     upload_id = data.get("id") or data.get("upload_id")
@@ -129,11 +182,29 @@ async def handle_upload_created(event: dict):
 
     return {"message": "Upload placeholder created."}
 
-
 # -------------------------------------------------------------
 # video.asset.created
 # -------------------------------------------------------------
 async def handle_asset_created(event: dict):
+    """
+    Fired shortly after upload is received, when the asset is created but
+    not yet processed. Useful for tracking progress and linking asset_id.
+
+    Persists:
+        • asset_id
+        • resolved title fallback
+        • status: asset_created
+
+    Parameters
+    ----------
+    event : dict
+        Payload including `data.id` (asset) and optionally `upload_id`.
+
+    Returns
+    -------
+    dict
+        Update summary for diagnostic logging or webhook replay.
+    """
     data = event.get("data", {}) or {}
 
     asset_id = data.get("id")
@@ -146,9 +217,6 @@ async def handle_asset_created(event: dict):
     if not title:
         title = "No title found"
     
-    #----------------------------------------------------------------------#
-    #---fetch asset details from Mux (playback_ids, duration, tracks)------#
-    #----------------------------------------------------------------------#
     asset_details = await get_asset(asset_id)
 
     playback_id = (
@@ -165,9 +233,6 @@ async def handle_asset_created(event: dict):
         asset_id, playback_id, duration
     )
 
-    #----------------------------------------------------------------------#
-    #----------------------------------------------------------------------#
-
     query = {
     "$or": [
         {"mux.upload_id": upload_id},
@@ -176,7 +241,6 @@ async def handle_asset_created(event: dict):
         {"video.asset_id": asset_id}
         ]
     }
-
 
     update_doc = {
     "$set": {
@@ -202,6 +266,20 @@ async def handle_asset_created(event: dict):
 # video.asset.deleted
 # -------------------------------------------------------------
 async def handle_asset_deleted(event: dict):
+    """
+    Marks the corresponding lesson entry as deleted when the asset is
+    permanently removed from Mux.
+
+    Parameters
+    ----------
+    event : dict
+        Payload with `data.id` representing asset_id.
+
+    Returns
+    -------
+    dict
+        Confirmation message + matched record count.
+    """
     data = event.get("data", {}) or {}
     asset_id = data.get("id")
 
@@ -228,6 +306,14 @@ async def handle_asset_deleted(event: dict):
 # video.asset.errored
 # -------------------------------------------------------------
 async def handle_asset_errored(event: dict):
+    """
+    Fired if Mux fails to process an asset.
+
+    Marks lesson so UI and backend can respond appropriately — retries, user
+    alerts, or manual re-upload.
+
+    Returns standard diagnostic response.
+    """
     data = event.get("data", {}) or {}
     asset_id = data.get("id")
 
@@ -257,6 +343,11 @@ async def handle_asset_errored(event: dict):
 # video.upload.cancelled
 # -------------------------------------------------------------
 async def handle_upload_cancelled(event: dict):
+    """
+    Upload was abandoned — invalidates pending lessons.
+
+    Used when client terminates upload or URL expires without completion.
+    """
     data = event.get("data", {}) or {}
 
     upload_id = data.get("id") or data.get("upload_id")
@@ -280,6 +371,12 @@ async def handle_upload_cancelled(event: dict):
 # video.upload.errored
 # -------------------------------------------------------------
 async def handle_upload_errored(event: dict):
+    """
+    Upload failed before reaching processing stage.
+
+    Keeps DB synchronized with failure state — helpful for UI recovery,
+    retries or logging metrics.
+    """
     data = event.get("data", {}) or {}
 
     upload_id = data.get("id") or data.get("upload_id")
@@ -297,7 +394,6 @@ async def handle_upload_errored(event: dict):
     result = await lessons_collection.update_one({"mux.upload_id": upload_id}, update_doc)
 
     return {"message": "Upload errored."}
-
 
 # -------------------------------------------------------------
 # HANDLER MAP
