@@ -92,6 +92,29 @@ async def update_course_endpoint(
     payload: CourseUpdate,
     current_user = Depends(get_current_user),
 ):
+    """
+    Update an existing course's metadata.
+
+    Only users with the "admin" role may perform this action. The endpoint
+    accepts a partial `CourseUpdate` payload and applies only the fields that
+    are provided (non-None). If no fields are provided, the request is a no-op.
+
+    Args:
+        course_id (str): Identifier of the course to update.
+        payload (CourseUpdate): Pydantic model carrying optional fields to update
+            (title, description).
+        current_user (User): Injected authenticated user (via dependency). Must
+            have admin privileges.
+
+    Raises:
+        HTTPException(403): If the requesting user is not an admin.
+        HTTPException(404): If the course with `course_id` does not exist.
+
+    Returns:
+        dict: On success, returns a message and a dict of `updated_fields` that
+        were applied to the course. If no fields are provided, returns a message
+        indicating nothing to update.
+    """
     # Optional: Only admins can edit courses
     if current_user.role.value != "admin":
         raise HTTPException(403, "Only admins can update courses")
