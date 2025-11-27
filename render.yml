@@ -1,0 +1,75 @@
+services:
+  # ----------------------------------------------
+  # FASTAPI APPLICATION
+  # ----------------------------------------------
+  - type: web
+    name: learnstream-backend
+    env: python
+    region: oregon               # or closer to you
+    plan: free                   # first deployment is free
+    buildCommand: pip install -r requirements.txt
+    startCommand: ./start.sh     # or uvicorn main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+
+    envVars:
+      # ---------------- PostgreSQL ----------------
+      - key: DATABASE_URL
+        fromDatabase:
+          name: learnstream-postgres
+          property: connectionString
+      - key: POSTGRES_USER
+        sync: false
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: POSTGRES_DB
+        sync: false
+      - key: POSTGRES_HOST
+        sync: false
+      - key: POSTGRES_PORT
+        sync: false
+
+      # ---------------- MongoDB -------------------
+      - key: MONGO_URL
+        sync: false
+      - key: MONGO_DB
+        sync: false
+
+      # ---------------- Redis (if needed later) ---
+      - key: REDIS_URL
+        sync: false
+
+      # ---------------- Auth / JWT ----------------
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ALGORITHM
+        sync: false
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        sync: false
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        sync: false
+
+      # ---------------- Mux API -------------------
+      - key: MUX_TOKEN_ID
+        sync: false
+      - key: MUX_TOKEN_SECRET
+        sync: false
+      - key: MUX_WEBHOOK_SECRET
+        sync: false
+
+      # ---------------- Admin Bootstrap ----------- 
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # ---------------- CORS ----------------------
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+
+
+# ----------------------------------------------
+# POSTGRES DATABASE (Managed by Render)
+# ----------------------------------------------
+databases:
+  - name: learnstream-postgres
+    plan: free
