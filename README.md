@@ -10,6 +10,16 @@
 </p>
 
 ---
+### Live Deployment
+
+| URL | Description |
+|----|-------------|
+| 🔗 https://py-learnstream-platform.onrender.com/ | Public landing page |
+| 🔗 https://py-learnstream-platform.onrender.com/docs | Swagger UI docs (Full API reference) |
+
+> Backend is live, API is interactive, and supports real JWT authentication + video asset workflow via Mux.
+
+---
 
 **LearnStream** is a modular, production-grade backend platform for **online learning and secure video delivery**, powered by **FastAPI**, **PostgreSQL**, **MongoDB**, and **Mux API**.
 
@@ -67,48 +77,78 @@ Clear separation of concerns and multi-layered architecture for maintainability.
 
 ```bash
 app/
-├── tests/                     # DETAILED BELOW on this README.
+├── tests/                     # Full testing suite (unit + integration + async) — explained below in detail
+│
 ├── admin/
-│   ├── router.py              # Admin-only endpoints (e.g., secure Mux uploads, management tasks)
+│   ├── router.py              # Admin-only protected routes (create assets, manage platform resources)
+│   └── __init__.py
 │
 ├── auth/
-│   ├── router.py              # Authentication routes (login, register, refresh tokens)
-│   ├── deps.py                # Auth-related FastAPI dependencies (JWT validation, user extraction)
+│   ├── router.py              # Endpoints for Login, Register, Logout, Token Refresh
+│   ├── deps.py                # FastAPI dependencies: JWT auth, current user extraction, role checking
+│   ├── schemas.py             # Request/response validation models (LoginRequest, AuthResponse, etc.)
+│   └── __init__.py
 │
 ├── core/
-│   ├── config.py              # Centralized environment configuration (loaded from .env via Pydantic)
+│   ├── config.py              # Global application settings loaded via Pydantic + .env
+│   ├── security.py            # Shared security utilities (JWT lifespan, crypto policies)
+│   └── __init__.py
 │
 ├── courses/
-│   ├── router.py              # REST endpoints for course creation, listing, and management
+│   ├── router.py              # Course CRUD endpoints (create, update, list, delete)
+│   ├── schemas.py             # Input/output models for Course transport layer
+│   └── __init__.py
 │
 ├── lessons/
-│   ├── router.py              # Endpoints for lesson delivery, metadata, and Mux video references
+│   ├── router.py              # Lesson endpoints: metadata, streaming references, Mux asset association
+│   ├── schemas.py             # Lesson request/response validation models
+│   └── __init__.py
+│
+├── user/
+│   ├── router.py              # User operations: profile update, enrollment request, progress fetch
+│   ├── schemas.py             # User schema models (UserOut, UpdateUser, EnrollmentResponse)
+│   └── __init__.py
 │
 ├── models/
-│   ├── sql/                   # Relational data models (PostgreSQL via SQLAlchemy)
-│   │   ├── user.py            # User entity (credentials, roles, timestamps)
-│   │   ├── enrollment.py      # User–Course enrollment model
-│   │   ├── refresh_token.py   # Persistent refresh token storage (hashed)
-│   │   ├── database.py        # Async SQLAlchemy engine, session factory, and Base metadata
+│   ├── sql/                   # Relational models (PostgreSQL via SQLAlchemy)
+│   │   ├── user.py            # User entity: credentials, roles, timestamps (authoritative auth source)
+│   │   ├── enrollment.py      # Many-to-many relation: User <-> Course mappings
+│   │   ├── refresh_token.py   # Stored hashed refresh tokens for revocation-based session control
+│   │   ├── database.py        # Async SQL engine/session + Alembic-ready metadata bindings
+│   │   └── __init__.py
 │   │
-│   ├── nosql/                 # NoSQL data schemas (MongoDB via Motor)
-│       ├── course.py          # Course schema and structure for MongoDB
-│       ├── lesson.py          # Lesson schema, including Mux asset references
-│       ├── progress.py        # User progress tracking schema
-│       ├── database.py        # MongoDB connection setup and database access layer
+│   ├── nosql/                 # MongoDB async collections (Motor) — AP side of PACELC design
+│       ├── course.py          # Course model (dynamic sizing, scalable for content-heavy storage)
+│       ├── lesson.py          # Lessons with Mux asset ref → resilient for large datasets
+│       ├── progress.py        # Streaming-friendly student progress tracking
+│       ├── database.py        # Motor async MongoDB client + collection handlers
+│       └── __init__.py
 │
 ├── mux_webhooks/
-│   ├── router.py              # Mux webhook routes (video.asset.created, video.asset.ready, etc.)
+│   ├── router.py              # Public webhook receiver endpoint for Mux
+│   ├── mux_handlers.py        # Event processing: asset.created → asset.ready → lesson binding
+│   └── __init__.py
 │
-├── services/
-│   ├── cache_service.py       # Redis caching layer for temporary data, tokens, and rate limiting
-│   ├── mux_service.py         # Mux API client: asset creation, upload URL generation, event utilities
-│   ├── refresh_token_ops.py   # Refresh token operations: rotation, revocation, persistence
-│   ├── security.py            # Password hashing, JWT generation/verification, token utilities
-│   ├── user_ops.py            # User-related business logic (registration, profile handling)
+├── services/                  # Business logic layer (separate from HTTP layer)
+│   ├── mux_service.py         # Mux SDK client: upload URLs, asset creation, signature validation
+│   ├── cache_service.py       # Redis caching + rate-limit hooks (future: session cache / predictions)
+│   ├── refresh_token_ops.py   # Token rotation, storage, blacklist logic
+│   ├── security.py            # Password hashing, JWT encode/decode utilities
+│   ├── user_ops.py            # High-level user workflows (signup, update profile, role management)
+│   ├── enrollment_ops.py      # Enrollment logic (ensure unique mapping, eligibility, progression)
+│   └── utils.py               # (optional) Reusable utility helpers for business workflows
 │
-└── main.py                    # FastAPI entry point — creates the app, loads routers and settings
-
+├── main.py                    # Application entry — mounts routers, loads config, CORS, middleware
+│
+├── Dockerfile                 # Deployment image definition (FastAPI + migrations + production server)
+├── docker-compose.yml         # Local environment stack: app + Postgres + Mongo (Optional Redis)
+├── Makefile                   # Automation commands — serve, format, test, migrate, docker-build
+├── render.yml                 # Infrastructure-as-code for Render deployment
+├── start.sh                   # Startup script: run alembic migrations → launch server
+│
+├── alembic.ini                # Alembic migration engine configuration
+├── .env.example               # Template environment variables for local development
+└── pytest.ini                 # Global pytest settings (async config, test discovery rules)
 ```
 
 ---
