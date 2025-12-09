@@ -17,7 +17,7 @@
 | 🔗 https://py-learnstream-platform.onrender.com/ | Public landing page |
 | 🔗 https://py-learnstream-platform.onrender.com/docs | Swagger UI docs (Full API reference) |
 
-> Backend is live, API is interactive, and supports real JWT authentication + video asset workflow via Mux.
+> Backend supports JWT authentication + video asset workflow via Mux.
 
 ---
 
